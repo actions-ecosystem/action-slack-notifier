@@ -10,14 +10,11 @@ inputs:
     required: true
   message:
     description: A message for the channel. Supports Markdown format.
-    required: false
+    required: true
   username:
     description: An username who sends a message.
     required: false
     default: "GitHub Actions"
-  icon_url:
-    description: A URL to an image to use as the icon for a message.
-    required: false
   color:
     description: A color of a message. The color names {black, red, green, yellow, blue, magenta, cyan, white} and color code (e.g., `#4CAF50`) are available. The default is no-color.
     required: false
@@ -26,7 +23,7 @@ inputs:
     required: false
     default: "false"
   custom_payload:
-    description: A custom payload in the form of JSON of a Slack block array. If this is specified, `inputs.message`, `inputs.color`, and `inputs.verbose` are ignored.
+    description: A custom payload, in the form of JSON of a Slack block array, overriding the whole message. If this is specified, `inputs.color` and `inputs.verbose` are ignored.
     required: false
 runs:
   using: node12

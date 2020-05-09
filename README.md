@@ -53,13 +53,12 @@ Visit `https://api.slack.com/apps/<YOUR_APP_ID>/install-on-team` and then instal
 | `channel`        | A channel that will receives the message. e.g.) `develop`, `#develop`                                                                                                  | `string` | `true`   | `N/A`            |
 | `message`        | A message for the channel. Supports Markdown format.                                                                                                                   | `string` | `false`  | `N/A`            |
 | `username`       | An username who sends a message.                                                                                                                                       | `string` | `false`  | `GitHub Actions` |
-| `icon_url`       | A URL to an image to use as the icon for a message.                                                                                                                    | `string` | `false`  | `N/A`            |
 | `color`          | A color of a message. The color names {black, red, green, yellow, blue, magenta, cyan, white} and color code (e.g., `#4CAF50`) are available. The default is no-color. | `string` | `false`  | `N/A`            |
 | `verbose`        | Whether message contains GitHub context: repository, ref, workflow, event, action, number                                                                              | `bool`   | `false`  | `false`          |
 | `custom_payload` | A custom payload in the form of JSON of a Slack block array. If this is specified, `inputs.message`, `inputs.color`, and `inputs.verbose` are ignored.                 | `string` | `false`  | `N/A`            |
 
-`inputs.custom_payload` is for advanced users.
-[Block Kit Builder](https://api.slack.com/tools/block-kit-builder) is helpful to build a JSON payload for this.
+`inputs.custom_payload` allows advanced users to send *any* form of message.
+[Block Kit Builder](https://api.slack.com/tools/block-kit-builder) helps you to build a JSON payload for this.
 
 ### Behaviors
 
@@ -276,6 +275,73 @@ jobs:
           channel: develop
           color: blue # optional
           verbose: true # optional
+```
+
+</details>
+
+### Send a custom payload
+
+<details>
+<summary>Screenshots</summary>
+
+![screenshot](./docs/assets/screenshot-example-custom-payload.png)
+
+</details>
+
+<details>
+<summary>Configuration</summary>
+
+```yaml
+name: Send Custom Payload
+
+on: push
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-ecosystem/action-slack-notifier@v1
+        with:
+          slack_token: ${{ secrets.SLACK_TOKEN }}
+          channel: develop
+          custom_payload: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "> message *with some bold text* and _some italicized text_."
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "This is a mrkdwn section block :ghost: *this is bold*, and ~this is crossed out~, and <https://google.com|this is a link>"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "This is a plain text section block.",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "For more info, contact <support@acme.inc>"
+                    }
+                  ]
+                }
+              ]
+            }
 ```
 
 </details>

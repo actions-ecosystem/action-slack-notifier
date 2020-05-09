@@ -27,7 +27,6 @@ async function run(): Promise<void> {
 
     const message = core.getInput('message');
     const username = core.getInput('username');
-    const iconUrl = core.getInput('icon_url') || undefined;
     const color =
       colorCodes.get(core.getInput('color')) || core.getInput('color');
     const verbose = core.getInput('verbose') === 'true';
@@ -56,11 +55,10 @@ async function run(): Promise<void> {
       elements,
       verbose,
       color,
-      customPayload,
-      iconUrl
+      customPayload
     );
 
-    client.chat.postMessage(args);
+    await client.chat.postMessage(args);
   } catch (e) {
     core.error(e);
     core.setFailed(e.message);
@@ -74,14 +72,12 @@ export async function createPostMessageArguments(
   elements: MrkdwnElement[],
   verbose: boolean,
   color: string,
-  customBlocks?: Block[],
-  iconUrl?: string
+  customBlocks?: Block[]
 ): Promise<ChatPostMessageArguments> {
   const args: ChatPostMessageArguments = {
     channel,
     text: '',
     username,
-    iconUrl,
     link_names: true,
     unfurl_links: true,
     unfurl_media: true
