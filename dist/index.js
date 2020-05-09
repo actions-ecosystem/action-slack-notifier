@@ -3344,7 +3344,9 @@ function run() {
             const username = core.getInput('username');
             const color = colorCodes.get(core.getInput('color')) || core.getInput('color');
             const verbose = core.getInput('verbose') === 'true';
-            const customPayload = JSON.parse(core.getInput('custom_payload'));
+            const customPayload = core.getInput('custom_payload') !== ''
+                ? JSON.parse(core.getInput('custom_payload'))
+                : undefined;
             const { owner, repo } = github.context.repo;
             const { payload, ref, eventName, workflow } = github.context;
             const runId = process.env['GITHUB_RUN_ID'] || '';
@@ -3358,18 +3360,18 @@ function run() {
         }
     });
 }
-function createPostMessageArguments(channel, message, username, elements, verbose, color, customBlocks) {
+function createPostMessageArguments(channel, message, username, elements, verbose, color, customPayload) {
     return __awaiter(this, void 0, void 0, function* () {
         const args = {
             channel,
-            text: '',
+            text: message,
             username,
             link_names: true,
             unfurl_links: true,
             unfurl_media: true
         };
-        if (customBlocks) {
-            args.blocks = customBlocks;
+        if (customPayload) {
+            args.blocks = customPayload.blocks;
             return args;
         }
         const colored = color.match(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/)
@@ -3381,7 +3383,7 @@ function createPostMessageArguments(channel, message, username, elements, verbos
         // !colored &&  verbose -> .blocks[]
         //  colored && !verbose -> .attachments[].{color, text}
         // !colored && !verbose -> .text
-        args.text = (!colored && verbose) || (colored && !verbose) ? '' : message;
+        args.text = (!colored && verbose) || (colored && !verbose) ? '' : args.text;
         if (!colored && verbose) {
             args.blocks = [
                 {

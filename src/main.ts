@@ -8,6 +8,10 @@ import {
   ChatPostMessageArguments
 } from '@slack/web-api';
 
+interface CustomPayload {
+  blocks: Block[];
+}
+
 const colorCodes = new Map<string, string>([
   ['black', '#000000'],
   ['red', '#F44336'],
@@ -31,7 +35,10 @@ async function run(): Promise<void> {
       colorCodes.get(core.getInput('color')) || core.getInput('color');
     const verbose = core.getInput('verbose') === 'true';
 
-    const customPayload: Block[] = JSON.parse(core.getInput('custom_payload'));
+    const customPayload: CustomPayload =
+      core.getInput('custom_payload') !== ''
+        ? JSON.parse(core.getInput('custom_payload'))
+        : undefined;
 
     const { owner, repo } = github.context.repo;
     const { payload, ref, eventName, workflow } = github.context;
@@ -72,19 +79,19 @@ export async function createPostMessageArguments(
   elements: MrkdwnElement[],
   verbose: boolean,
   color: string,
-  customBlocks?: Block[]
+  customPayload?: CustomPayload
 ): Promise<ChatPostMessageArguments> {
   const args: ChatPostMessageArguments = {
     channel,
-    text: '',
+    text: message,
     username,
     link_names: true,
     unfurl_links: true,
     unfurl_media: true
   };
 
-  if (customBlocks) {
-    args.blocks = customBlocks;
+  if (customPayload) {
+    args.blocks = customPayload.blocks;
     return args;
   }
 
@@ -99,7 +106,7 @@ export async function createPostMessageArguments(
   //  colored && !verbose -> .attachments[].{color, text}
   // !colored && !verbose -> .text
 
-  args.text = (!colored && verbose) || (colored && !verbose) ? '' : message;
+  args.text = (!colored && verbose) || (colored && !verbose) ? '' : args.text;
 
   if (!colored && verbose) {
     args.blocks = [
