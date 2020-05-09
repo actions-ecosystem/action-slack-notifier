@@ -47,14 +47,19 @@ Visit `https://api.slack.com/apps/<YOUR_APP_ID>/install-on-team` and then instal
 
 ## Inputs
 
-|     NAME      |                                                                                       DESCRIPTION                                                                                        |   TYPE   | REQUIRED |     DEFAULT      |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------- | ---------------- |
-| `slack_token` | A Slack token.                                                                                                                                                                           | `string` | `true`   | `N/A`            |
-| `message`     | A message for the channel. Supports Markdown format.                                                                                                                                     | `string` | `true`   | `N/A`            |
-| `channel`     | A channel that will receives the message.                                                                                                                                                | `string` | `true`   | `N/A`            |
-| `username`    | The username who sends a message.                                                                                                                                                        | `string` | `false`  | `GitHub Actions` |
-| `color`       | The color of a message. The color names {`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`} and color code (e.g., `#4CAF50`) are available. The default is no-color. | `string` | `false`  | `N/A`            |
-| `verbose`     | Whether message contains GitHub context: repository, ref, workflow, event, action, number                                                                                                | `bool`   | `false`  | `false`          |
+|       NAME       |                                                                              DESCRIPTION                                                                               |   TYPE   | REQUIRED |     DEFAULT      |
+|------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|----------|------------------|
+| `slack_token`    | A Slack token.                                                                                                                                                         | `string` | `true`   | `N/A`            |
+| `channel`        | A channel that will receives the message. e.g.) `develop`, `#develop`                                                                                                  | `string` | `true`   | `N/A`            |
+| `message`        | A message for the channel. Supports Markdown format.                                                                                                                   | `string` | `false`  | `N/A`            |
+| `username`       | An username who sends a message.                                                                                                                                       | `string` | `false`  | `GitHub Actions` |
+| `icon_url`       | A URL to an image to use as the icon for a message.                                                                                                                    | `string` | `false`  | `N/A`            |
+| `color`          | A color of a message. The color names {black, red, green, yellow, blue, magenta, cyan, white} and color code (e.g., `#4CAF50`) are available. The default is no-color. | `string` | `false`  | `N/A`            |
+| `verbose`        | Whether message contains GitHub context: repository, ref, workflow, event, action, number                                                                              | `bool`   | `false`  | `false`          |
+| `custom_payload` | A custom payload in the form of JSON of a Slack block array. If this is specified, `inputs.message`, `inputs.color`, and `inputs.verbose` are ignored.                 | `string` | `false`  | `N/A`            |
+
+`inputs.custom_payload` is for advanced users.
+[Block Kit Builder](https://api.slack.com/tools/block-kit-builder) is helpful to build a JSON payload for this.
 
 ### Behaviors
 

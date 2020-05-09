@@ -3,6 +3,7 @@ import * as core from '@actions/core';
 import * as webhooks from '@octokit/webhooks';
 import {
   WebClient,
+  Block,
   MrkdwnElement,
   ChatPostMessageArguments
 } from '@slack/web-api';
@@ -26,10 +27,12 @@ async function run(): Promise<void> {
 
     const message = core.getInput('message');
     const username = core.getInput('username');
+    const iconUrl = core.getInput('icon_url') || undefined;
     const color =
       colorCodes.get(core.getInput('color')) || core.getInput('color');
-
     const verbose = core.getInput('verbose') === 'true';
+
+    const customPayload: Block[] = JSON.parse(core.getInput('custom_payload'));
 
     const { owner, repo } = github.context.repo;
     const { payload, ref, eventName, workflow } = github.context;
@@ -52,7 +55,9 @@ async function run(): Promise<void> {
       username,
       elements,
       verbose,
-      color
+      color,
+      customPayload,
+      iconUrl
     );
 
     client.chat.postMessage(args);
@@ -68,16 +73,24 @@ export async function createPostMessageArguments(
   username: string,
   elements: MrkdwnElement[],
   verbose: boolean,
-  color: string
+  color: string,
+  customBlocks?: Block[],
+  iconUrl?: string
 ): Promise<ChatPostMessageArguments> {
   const args: ChatPostMessageArguments = {
     channel,
     text: '',
     username,
+    iconUrl,
     link_names: true,
     unfurl_links: true,
     unfurl_media: true
   };
+
+  if (customBlocks) {
+    args.blocks = customBlocks;
+    return args;
+  }
 
   const colored = color.match(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/)
     ? true

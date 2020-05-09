@@ -3342,13 +3342,15 @@ function run() {
             const channel = core.getInput('channel').replace(/^#/, ''); // remove '#' prefix
             const message = core.getInput('message');
             const username = core.getInput('username');
+            const iconUrl = core.getInput('icon_url') || undefined;
             const color = colorCodes.get(core.getInput('color')) || core.getInput('color');
             const verbose = core.getInput('verbose') === 'true';
+            const customPayload = JSON.parse(core.getInput('custom_payload'));
             const { owner, repo } = github.context.repo;
             const { payload, ref, eventName, workflow } = github.context;
             const runId = process.env['GITHUB_RUN_ID'] || '';
             const elements = yield createGitHubContextElements(owner, repo, payload, ref, eventName, workflow, runId);
-            const args = yield createPostMessageArguments(channel, message, username, elements, verbose, color);
+            const args = yield createPostMessageArguments(channel, message, username, elements, verbose, color, customPayload, iconUrl);
             client.chat.postMessage(args);
         }
         catch (e) {
@@ -3357,16 +3359,21 @@ function run() {
         }
     });
 }
-function createPostMessageArguments(channel, message, username, elements, verbose, color) {
+function createPostMessageArguments(channel, message, username, elements, verbose, color, customBlocks, iconUrl) {
     return __awaiter(this, void 0, void 0, function* () {
         const args = {
             channel,
             text: '',
             username,
+            iconUrl,
             link_names: true,
             unfurl_links: true,
             unfurl_media: true
         };
+        if (customBlocks) {
+            args.blocks = customBlocks;
+            return args;
+        }
         const colored = color.match(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/)
             ? true
             : false;
