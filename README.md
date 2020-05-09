@@ -31,13 +31,13 @@ Visit https://api.slack.com/apps and then create an app in your workspace.
 
 ![screenshot](./docs/assets/screenshot-slack-create-app.png)
 
-1. Add a permission to the app
+2. Add a permission to the app
 
 Visit `https://api.slack.com/apps/<YOUR_APP_ID>/oauth` and then add a permission to your app.
 
 ![screenshot](./docs/assets/screenshot-slack-add-permission.png)
 
-1. Install the app
+3. Install the app
 
 Visit `https://api.slack.com/apps/<YOUR_APP_ID>/install-on-team` and then install your app in your workspace.
 
