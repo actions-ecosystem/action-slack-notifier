@@ -3339,7 +3339,7 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const client = new web_api_1.WebClient(core.getInput('slack_token'));
-            const channel = core.getInput('channel').replace('^E', '');
+            const channel = core.getInput('channel').replace(/^#/, ''); // remove '#' prefix
             const message = core.getInput('message');
             const username = core.getInput('username');
             const color = colorCodes.get(core.getInput('color')) || core.getInput('color');

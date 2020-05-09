@@ -22,7 +22,7 @@ async function run(): Promise<void> {
   try {
     const client = new WebClient(core.getInput('slack_token'));
 
-    const channel = core.getInput('channel').replace('^E', '');
+    const channel = core.getInput('channel').replace(/^#/, ''); // remove '#' prefix
 
     const message = core.getInput('message');
     const username = core.getInput('username');
