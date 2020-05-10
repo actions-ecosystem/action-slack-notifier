@@ -159,12 +159,7 @@ jobs:
 
 ### Send a notification when the previous job fails
 
-<details>
-<summary>Screenshots</summary>
-
 ![screenshot](./docs/assets/screenshot-example-failure.png)
-
-</details>
 
 <details>
 <summary>Configuration</summary>
@@ -199,13 +194,8 @@ jobs:
 
 ### Propagate mentions from GitHub to Slack
 
-<details>
-<summary>Screenshots</summary>
-
 ![screenshot](./docs/assets/screenshot-example-comment-github.png)
 ![screenshot](./docs/assets/screenshot-example-comment-slack.png)
-
-</details>
 
 <details>
 <summary>Configuration</summary>
@@ -244,12 +234,7 @@ jobs:
 
 ### Send a notification when a specific label is added
 
-<details>
-<summary>Screenshots</summary>
-
 ![screenshot](./docs/assets/screenshot-example-labeled.png)
-
-</details>
 
 <details>
 <summary>Configuration</summary>
@@ -281,12 +266,7 @@ jobs:
 
 ### Send a custom payload
 
-<details>
-<summary>Screenshots</summary>
-
 ![screenshot](./docs/assets/screenshot-example-custom-payload.png)
-
-</details>
 
 <details>
 <summary>Configuration</summary>
