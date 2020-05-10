@@ -51,11 +51,11 @@ Visit `https://api.slack.com/apps/<YOUR_APP_ID>/install-on-team` and then instal
 |------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|----------|------------------|
 | `slack_token`    | A Slack token.                                                                                                                                                         | `string` | `true`   | `N/A`            |
 | `channel`        | A channel that will receives the message. e.g.) `develop`, `#develop`                                                                                                  | `string` | `true`   | `N/A`            |
-| `message`        | A message for the channel. Supports Markdown format.                                                                                                                   | `string` | `false`  | `N/A`            |
+| `message`        | A message for the channel. Supports Markdown format.                                                                                                                   | `string` | `true`   | `N/A`            |
 | `username`       | An username who sends a message.                                                                                                                                       | `string` | `false`  | `GitHub Actions` |
 | `color`          | A color of a message. The color names {black, red, green, yellow, blue, magenta, cyan, white} and color code (e.g., `#4CAF50`) are available. The default is no-color. | `string` | `false`  | `N/A`            |
 | `verbose`        | Whether message contains GitHub context: repository, ref, workflow, event, action, number                                                                              | `bool`   | `false`  | `false`          |
-| `custom_payload` | A custom payload in the form of JSON of a Slack block array. If this is specified, `inputs.message`, `inputs.color`, and `inputs.verbose` are ignored.                 | `string` | `false`  | `N/A`            |
+| `custom_payload` | A custom payload, in the form of JSON of a Slack block array, overriding the whole message. If this is specified, `inputs.color` and `inputs.verbose` are ignored.     | `string` | `false`  | `N/A`            |
 
 `inputs.custom_payload` allows advanced users to send *any* form of message.
 [Block Kit Builder](https://api.slack.com/tools/block-kit-builder) helps you to build a JSON payload for this.
