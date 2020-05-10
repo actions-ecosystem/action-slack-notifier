@@ -1,6 +1,6 @@
 import { createPostMessageArguments } from '../src/main';
 
-test('createPostMessageArguments color=true, verbose=true', async () => {
+test('createPostMessageArguments colored=true, verbose=true', async () => {
   const args = await createPostMessageArguments(
     'develop',
     'hello',
@@ -37,7 +37,7 @@ test('createPostMessageArguments color=true, verbose=true', async () => {
   ]);
 });
 
-test('createPostMessageArguments color=false, verbose=true', async () => {
+test('createPostMessageArguments colored=false, verbose=true', async () => {
   const args = await createPostMessageArguments(
     'develop',
     'hello',
@@ -73,7 +73,7 @@ test('createPostMessageArguments color=false, verbose=true', async () => {
   ]);
 });
 
-test('createPostMessageArguments color=true, verbose=false', async () => {
+test('createPostMessageArguments colored=true, verbose=false', async () => {
   const args = await createPostMessageArguments(
     'develop',
     'hello',
@@ -100,7 +100,7 @@ test('createPostMessageArguments color=true, verbose=false', async () => {
   ]);
 });
 
-test('createPostMessageArguments color=false, verbose=false', async () => {
+test('createPostMessageArguments colored=false, verbose=false', async () => {
   const args = await createPostMessageArguments(
     'develop',
     'hello',
