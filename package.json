@@ -27,7 +27,7 @@
     "@actions/core": "^1.2.3",
     "@actions/github": "^2.1.1",
     "@octokit/rest": "^16.43.1",
-    "@slack/web-api": "^5.8.1",
+    "@slack/web-api": "^5.9.0",
     "semver": "^7.3.2"
   },
   "devDependencies": {
