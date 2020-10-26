@@ -290,6 +290,7 @@ jobs:
         with:
           slack_token: ${{ secrets.SLACK_TOKEN }}
           channel: develop
+          message: 'This text is for notifications.'
           custom_payload: |
             {
               "blocks": [
