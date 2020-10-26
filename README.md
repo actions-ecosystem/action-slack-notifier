@@ -43,6 +43,10 @@ Visit `https://api.slack.com/apps/<YOUR_APP_ID>/install-on-team` and then instal
 
 ![screenshot](./docs/assets/screenshot-slack-install-app.png)
 
+4. Add the app to a channel
+
+Open a Slack channel and add the app.
+
 </details>
 
 ## Inputs
