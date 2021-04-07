@@ -24,7 +24,7 @@
   "author": "The Actions Ecosystem Authors",
   "license": "Apache 2.0",
   "dependencies": {
-    "@actions/core": "^1.2.3",
+    "@actions/core": "^1.2.6",
     "@actions/github": "^2.1.1",
     "@octokit/rest": "^17.9.3",
     "@slack/web-api": "^5.8.1",
