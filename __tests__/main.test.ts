@@ -12,12 +12,15 @@ test('createPostMessageArguments colored=true, verbose=true', async () => {
       }
     ],
     true,
-    '#000000'
+    '#000000',
+    true
   );
 
   expect(args.text).toEqual('hello');
   expect(args.attachments).not.toBeUndefined();
   expect(args.blocks).toBeUndefined();
+  expect(args.unfurl_links).toEqual(true);
+  expect(args.unfurl_media).toEqual(true);
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   expect(args.attachments!).toEqual([
     {
@@ -49,12 +52,15 @@ test('createPostMessageArguments colored=false, verbose=true', async () => {
       }
     ],
     true,
-    ''
+    '',
+    true
   );
 
   expect(args.text).toEqual('');
   expect(args.attachments).toBeUndefined();
   expect(args.blocks).not.toBeUndefined();
+  expect(args.unfurl_links).toEqual(true);
+  expect(args.unfurl_media).toEqual(true);
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   expect(args.blocks!).toEqual([
     {
@@ -85,12 +91,15 @@ test('createPostMessageArguments colored=true, verbose=false', async () => {
       }
     ],
     false,
-    '#000000'
+    '#000000',
+    true
   );
 
   expect(args.text).toEqual('');
   expect(args.attachments).not.toBeUndefined();
   expect(args.blocks).toBeUndefined();
+  expect(args.unfurl_links).toEqual(true);
+  expect(args.unfurl_media).toEqual(true);
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   expect(args.attachments!).toEqual([
     {
@@ -112,10 +121,13 @@ test('createPostMessageArguments colored=false, verbose=false', async () => {
       }
     ],
     false,
-    ''
+    '',
+    true
   );
 
   expect(args.text).toEqual('hello');
   expect(args.attachments).toBeUndefined();
   expect(args.blocks).toBeUndefined();
+  expect(args.unfurl_links).toEqual(true);
+  expect(args.unfurl_media).toEqual(true);
 });
