@@ -34,7 +34,7 @@ async function run(): Promise<void> {
     const color =
       colorCodes.get(core.getInput('color')) || core.getInput('color');
     const verbose = core.getInput('verbose') === 'true';
-    const unfurl = core.getInput('unfurl') === 'false';
+    const unfurl = core.getInput('unfurl') !== 'false';
 
     const customPayload: CustomPayload =
       core.getInput('custom_payload') !== ''
