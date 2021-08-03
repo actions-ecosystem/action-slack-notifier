@@ -34,6 +34,7 @@ async function run(): Promise<void> {
     const color =
       colorCodes.get(core.getInput('color')) || core.getInput('color');
     const verbose = core.getInput('verbose') === 'true';
+    const unfurl = core.getInput('unfurl') !== 'false';
 
     const customPayload: CustomPayload =
       core.getInput('custom_payload') !== ''
@@ -62,6 +63,7 @@ async function run(): Promise<void> {
       elements,
       verbose,
       color,
+      unfurl,
       customPayload
     );
 
@@ -79,6 +81,7 @@ export async function createPostMessageArguments(
   elements: MrkdwnElement[],
   verbose: boolean,
   color: string,
+  unfurl: boolean,
   customPayload?: CustomPayload
 ): Promise<ChatPostMessageArguments> {
   const args: ChatPostMessageArguments = {
@@ -86,8 +89,8 @@ export async function createPostMessageArguments(
     text: message,
     username,
     link_names: true,
-    unfurl_links: true,
-    unfurl_media: true
+    unfurl_links: unfurl,
+    unfurl_media: unfurl
   };
 
   if (customPayload) {

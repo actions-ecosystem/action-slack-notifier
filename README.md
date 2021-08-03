@@ -59,6 +59,7 @@ Open a Slack channel and add the app.
 | `username`       | An username who sends a message.                                                                                                                                       | `string` | `false`  | `GitHub Actions` |
 | `color`          | A color of a message. The color names {black, red, green, yellow, blue, magenta, cyan, white} and color code (e.g., `#4CAF50`) are available. The default is no-color. | `string` | `false`  | `N/A`            |
 | `verbose`        | Whether message contains GitHub context: repository, ref, workflow, event, action, number                                                                              | `bool`   | `false`  | `false`          |
+| `unfurl`         | Whether to unfurl links and media in a message.                                                                                                                        | `bool`   | `false`  | `true`           |
 | `custom_payload` | A custom payload, in the form of JSON of a Slack block array, overriding the whole message. If this is specified, `inputs.color` and `inputs.verbose` are ignored.     | `string` | `false`  | `N/A`            |
 
 `inputs.custom_payload` allows advanced users to send *any* form of message.
