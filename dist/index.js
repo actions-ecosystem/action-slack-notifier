@@ -19,7 +19,13 @@ module.exports =
 /******/ 		};
 /******/
 /******/ 		// Execute the module function
-/******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 		var threw = true;
+/******/ 		try {
+/******/ 			modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 			threw = false;
+/******/ 		} finally {
+/******/ 			if(threw) delete installedModules[moduleId];
+/******/ 		}
 /******/
 /******/ 		// Flag the module as loaded
 /******/ 		module.l = true;
@@ -42,56 +48,6 @@ module.exports =
 /******/ })
 /************************************************************************/
 /******/ ({
-
-/***/ 0:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-const { requestLog } = __webpack_require__(916);
-const {
-  restEndpointMethods
-} = __webpack_require__(842);
-
-const Core = __webpack_require__(529);
-
-const CORE_PLUGINS = [
-  __webpack_require__(190),
-  __webpack_require__(19), // deprecated: remove in v17
-  requestLog,
-  __webpack_require__(148),
-  restEndpointMethods,
-  __webpack_require__(430),
-
-  __webpack_require__(850) // deprecated: remove in v17
-];
-
-const OctokitRest = Core.plugin(CORE_PLUGINS);
-
-function DeprecatedOctokit(options) {
-  const warn =
-    options && options.log && options.log.warn
-      ? options.log.warn
-      : console.warn;
-  warn(
-    '[@octokit/rest] `const Octokit = require("@octokit/rest")` is deprecated. Use `const { Octokit } = require("@octokit/rest")` instead'
-  );
-  return new OctokitRest(options);
-}
-
-const Octokit = Object.assign(DeprecatedOctokit, {
-  Octokit: OctokitRest
-});
-
-Object.keys(OctokitRest).forEach(key => {
-  /* istanbul ignore else */
-  if (OctokitRest.hasOwnProperty(key)) {
-    Octokit[key] = OctokitRest[key];
-  }
-});
-
-module.exports = Octokit;
-
-
-/***/ }),
 
 /***/ 2:
 /***/ (function(module, __unusedexports, __webpack_require__) {
@@ -296,47 +252,9 @@ module.exports = require("tls");
 /***/ }),
 
 /***/ 18:
-/***/ (function() {
+/***/ (function(module) {
 
-eval("require")("encoding");
-
-
-/***/ }),
-
-/***/ 19:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = authenticationPlugin;
-
-const { Deprecation } = __webpack_require__(692);
-const once = __webpack_require__(969);
-
-const deprecateAuthenticate = once((log, deprecation) => log.warn(deprecation));
-
-const authenticate = __webpack_require__(674);
-const beforeRequest = __webpack_require__(471);
-const requestError = __webpack_require__(349);
-
-function authenticationPlugin(octokit, options) {
-  if (options.auth) {
-    octokit.authenticate = () => {
-      deprecateAuthenticate(
-        octokit.log,
-        new Deprecation(
-          '[@octokit/rest] octokit.authenticate() is deprecated and has no effect when "auth" option is set on Octokit constructor'
-        )
-      );
-    };
-    return;
-  }
-  const state = {
-    octokit,
-    auth: false
-  };
-  octokit.authenticate = authenticate.bind(null, state);
-  octokit.hook.before("request", beforeRequest.bind(null, state));
-  octokit.hook.error("request", requestError.bind(null, state));
-}
+module.exports = eval("require")("encoding");
 
 
 /***/ }),
@@ -411,13 +329,6 @@ module.exports = function createError(message, config, code, request, response) 
   return enhanceError(error, config, code, request, response);
 };
 
-
-/***/ }),
-
-/***/ 34:
-/***/ (function(module) {
-
-module.exports = require("https");
 
 /***/ }),
 
@@ -773,6 +684,112 @@ module.exports = {
 
 /***/ }),
 
+/***/ 36:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = parseOptions;
+
+const { Deprecation } = __webpack_require__(692);
+const { getUserAgent } = __webpack_require__(422);
+const once = __webpack_require__(969);
+
+const pkg = __webpack_require__(919);
+
+const deprecateOptionsTimeout = once((log, deprecation) =>
+  log.warn(deprecation)
+);
+const deprecateOptionsAgent = once((log, deprecation) => log.warn(deprecation));
+const deprecateOptionsHeaders = once((log, deprecation) =>
+  log.warn(deprecation)
+);
+
+function parseOptions(options, log, hook) {
+  if (options.headers) {
+    options.headers = Object.keys(options.headers).reduce((newObj, key) => {
+      newObj[key.toLowerCase()] = options.headers[key];
+      return newObj;
+    }, {});
+  }
+
+  const clientDefaults = {
+    headers: options.headers || {},
+    request: options.request || {},
+    mediaType: {
+      previews: [],
+      format: ""
+    }
+  };
+
+  if (options.baseUrl) {
+    clientDefaults.baseUrl = options.baseUrl;
+  }
+
+  if (options.userAgent) {
+    clientDefaults.headers["user-agent"] = options.userAgent;
+  }
+
+  if (options.previews) {
+    clientDefaults.mediaType.previews = options.previews;
+  }
+
+  if (options.timeZone) {
+    clientDefaults.headers["time-zone"] = options.timeZone;
+  }
+
+  if (options.timeout) {
+    deprecateOptionsTimeout(
+      log,
+      new Deprecation(
+        "[@octokit/rest] new Octokit({timeout}) is deprecated. Use {request: {timeout}} instead. See https://github.com/octokit/request.js#request"
+      )
+    );
+    clientDefaults.request.timeout = options.timeout;
+  }
+
+  if (options.agent) {
+    deprecateOptionsAgent(
+      log,
+      new Deprecation(
+        "[@octokit/rest] new Octokit({agent}) is deprecated. Use {request: {agent}} instead. See https://github.com/octokit/request.js#request"
+      )
+    );
+    clientDefaults.request.agent = options.agent;
+  }
+
+  if (options.headers) {
+    deprecateOptionsHeaders(
+      log,
+      new Deprecation(
+        "[@octokit/rest] new Octokit({headers}) is deprecated. Use {userAgent, previews} instead. See https://github.com/octokit/request.js#request"
+      )
+    );
+  }
+
+  const userAgentOption = clientDefaults.headers["user-agent"];
+  const defaultUserAgent = `octokit.js/${pkg.version} ${getUserAgent()}`;
+
+  clientDefaults.headers["user-agent"] = [userAgentOption, defaultUserAgent]
+    .filter(Boolean)
+    .join(" ");
+
+  clientDefaults.request.hook = hook.bind(null, "request");
+
+  return clientDefaults;
+}
+
+
+/***/ }),
+
+/***/ 37:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+const factory = __webpack_require__(513);
+
+module.exports = factory();
+
+
+/***/ }),
+
 /***/ 39:
 /***/ (function(module) {
 
@@ -790,23 +807,6 @@ module.exports = opts => {
 
 	return Object.keys(env).find(x => x.toUpperCase() === 'PATH') || 'Path';
 };
-
-
-/***/ }),
-
-/***/ 47:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = factory;
-
-const Octokit = __webpack_require__(402);
-const registerPlugin = __webpack_require__(855);
-
-function factory(plugins) {
-  const Api = Octokit.bind(null, plugins || []);
-  Api.plugin = registerPlugin.bind(null, plugins || []);
-  return Api;
-}
 
 
 /***/ }),
@@ -885,6 +885,165 @@ module.exports = {"name":"@slack/web-api","version":"5.8.1","description":"Offic
 
 /***/ }),
 
+/***/ 63:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+
+module.exports = validate;
+
+const { RequestError } = __webpack_require__(463);
+const get = __webpack_require__(854);
+const set = __webpack_require__(883);
+
+function validate(octokit, options) {
+  if (!options.request.validate) {
+    return;
+  }
+  const { validate: params } = options.request;
+
+  Object.keys(params).forEach(parameterName => {
+    const parameter = get(params, parameterName);
+
+    const expectedType = parameter.type;
+    let parentParameterName;
+    let parentValue;
+    let parentParamIsPresent = true;
+    let parentParameterIsArray = false;
+
+    if (/\./.test(parameterName)) {
+      parentParameterName = parameterName.replace(/\.[^.]+$/, "");
+      parentParameterIsArray = parentParameterName.slice(-2) === "[]";
+      if (parentParameterIsArray) {
+        parentParameterName = parentParameterName.slice(0, -2);
+      }
+      parentValue = get(options, parentParameterName);
+      parentParamIsPresent =
+        parentParameterName === "headers" ||
+        (typeof parentValue === "object" && parentValue !== null);
+    }
+
+    const values = parentParameterIsArray
+      ? (get(options, parentParameterName) || []).map(
+          value => value[parameterName.split(/\./).pop()]
+        )
+      : [get(options, parameterName)];
+
+    values.forEach((value, i) => {
+      const valueIsPresent = typeof value !== "undefined";
+      const valueIsNull = value === null;
+      const currentParameterName = parentParameterIsArray
+        ? parameterName.replace(/\[\]/, `[${i}]`)
+        : parameterName;
+
+      if (!parameter.required && !valueIsPresent) {
+        return;
+      }
+
+      // if the parent parameter is of type object but allows null
+      // then the child parameters can be ignored
+      if (!parentParamIsPresent) {
+        return;
+      }
+
+      if (parameter.allowNull && valueIsNull) {
+        return;
+      }
+
+      if (!parameter.allowNull && valueIsNull) {
+        throw new RequestError(
+          `'${currentParameterName}' cannot be null`,
+          400,
+          {
+            request: options
+          }
+        );
+      }
+
+      if (parameter.required && !valueIsPresent) {
+        throw new RequestError(
+          `Empty value for parameter '${currentParameterName}': ${JSON.stringify(
+            value
+          )}`,
+          400,
+          {
+            request: options
+          }
+        );
+      }
+
+      // parse to integer before checking for enum
+      // so that string "1" will match enum with number 1
+      if (expectedType === "integer") {
+        const unparsedValue = value;
+        value = parseInt(value, 10);
+        if (isNaN(value)) {
+          throw new RequestError(
+            `Invalid value for parameter '${currentParameterName}': ${JSON.stringify(
+              unparsedValue
+            )} is NaN`,
+            400,
+            {
+              request: options
+            }
+          );
+        }
+      }
+
+      if (parameter.enum && parameter.enum.indexOf(String(value)) === -1) {
+        throw new RequestError(
+          `Invalid value for parameter '${currentParameterName}': ${JSON.stringify(
+            value
+          )}`,
+          400,
+          {
+            request: options
+          }
+        );
+      }
+
+      if (parameter.validation) {
+        const regex = new RegExp(parameter.validation);
+        if (!regex.test(value)) {
+          throw new RequestError(
+            `Invalid value for parameter '${currentParameterName}': ${JSON.stringify(
+              value
+            )}`,
+            400,
+            {
+              request: options
+            }
+          );
+        }
+      }
+
+      if (expectedType === "object" && typeof value === "string") {
+        try {
+          value = JSON.parse(value);
+        } catch (exception) {
+          throw new RequestError(
+            `JSON parse error of value for parameter '${currentParameterName}': ${JSON.stringify(
+              value
+            )}`,
+            400,
+            {
+              request: options
+            }
+          );
+        }
+      }
+
+      set(options, parameter.mapTo || currentParameterName, value);
+    });
+  });
+
+  return options;
+}
+
+
+/***/ }),
+
 /***/ 69:
 /***/ (function(module) {
 
@@ -914,6 +1073,36 @@ if (typeof process === 'undefined' || process.type === 'renderer') {
   module.exports = __webpack_require__(235);
 } else {
   module.exports = __webpack_require__(738);
+}
+
+
+/***/ }),
+
+/***/ 85:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = withAuthorizationPrefix;
+
+const atob = __webpack_require__(368);
+
+const REGEX_IS_BASIC_AUTH = /^[\w-]+:/;
+
+function withAuthorizationPrefix(authorization) {
+  if (/^(basic|bearer|token) /i.test(authorization)) {
+    return authorization;
+  }
+
+  try {
+    if (REGEX_IS_BASIC_AUTH.test(atob(authorization))) {
+      return `basic ${authorization}`;
+    }
+  } catch (error) {}
+
+  if (authorization.split(/\./).length === 3) {
+    return `bearer ${authorization}`;
+  }
+
+  return `token ${authorization}`;
 }
 
 
@@ -2005,6 +2194,42 @@ module.exports = function buildURL(url, params, paramsSerializer) {
 
 /***/ }),
 
+/***/ 135:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = Octokit;
+
+const { request } = __webpack_require__(753);
+const Hook = __webpack_require__(523);
+
+const parseClientOptions = __webpack_require__(36);
+
+function Octokit(plugins, options) {
+  options = options || {};
+  const hook = new Hook.Collection();
+  const log = Object.assign(
+    {
+      debug: () => {},
+      info: () => {},
+      warn: console.warn,
+      error: console.error
+    },
+    options && options.log
+  );
+  const api = {
+    hook,
+    log,
+    request: request.defaults(parseClientOptions(options, log, hook))
+  };
+
+  plugins.forEach(pluginFunction => pluginFunction(api, options));
+
+  return api;
+}
+
+
+/***/ }),
+
 /***/ 137:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -2302,6 +2527,56 @@ function coerce(val) {
 
 /***/ }),
 
+/***/ 140:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = authenticationBeforeRequest;
+
+const btoa = __webpack_require__(675);
+const uniq = __webpack_require__(126);
+
+function authenticationBeforeRequest(state, options) {
+  if (!state.auth.type) {
+    return;
+  }
+
+  if (state.auth.type === "basic") {
+    const hash = btoa(`${state.auth.username}:${state.auth.password}`);
+    options.headers.authorization = `Basic ${hash}`;
+    return;
+  }
+
+  if (state.auth.type === "token") {
+    options.headers.authorization = `token ${state.auth.token}`;
+    return;
+  }
+
+  if (state.auth.type === "app") {
+    options.headers.authorization = `Bearer ${state.auth.token}`;
+    const acceptHeaders = options.headers.accept
+      .split(",")
+      .concat("application/vnd.github.machine-man-preview+json");
+    options.headers.accept = uniq(acceptHeaders)
+      .filter(Boolean)
+      .join(",");
+    return;
+  }
+
+  options.url += options.url.indexOf("?") === -1 ? "?" : "&";
+
+  if (state.auth.token) {
+    options.url += `access_token=${encodeURIComponent(state.auth.token)}`;
+    return;
+  }
+
+  const key = encodeURIComponent(state.auth.key);
+  const secret = encodeURIComponent(state.auth.secret);
+  options.url += `client_id=${key}&client_secret=${secret}`;
+}
+
+
+/***/ }),
+
 /***/ 141:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
@@ -2311,7 +2586,7 @@ function coerce(val) {
 var net = __webpack_require__(631);
 var tls = __webpack_require__(16);
 var http = __webpack_require__(605);
-var https = __webpack_require__(34);
+var https = __webpack_require__(211);
 var events = __webpack_require__(614);
 var assert = __webpack_require__(357);
 var util = __webpack_require__(669);
@@ -2574,36 +2849,6 @@ exports.debug = debug; // for test
 
 /***/ }),
 
-/***/ 143:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = withAuthorizationPrefix;
-
-const atob = __webpack_require__(368);
-
-const REGEX_IS_BASIC_AUTH = /^[\w-]+:/;
-
-function withAuthorizationPrefix(authorization) {
-  if (/^(basic|bearer|token) /i.test(authorization)) {
-    return authorization;
-  }
-
-  try {
-    if (REGEX_IS_BASIC_AUTH.test(atob(authorization))) {
-      return `basic ${authorization}`;
-    }
-  } catch (error) {}
-
-  if (authorization.split(/\./).length === 3) {
-    return `bearer ${authorization}`;
-  }
-
-  return `token ${authorization}`;
-}
-
-
-/***/ }),
-
 /***/ 145:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -2701,20 +2946,6 @@ function state(list, sortMethod)
   }
 
   return initState;
-}
-
-
-/***/ }),
-
-/***/ 148:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = paginatePlugin;
-
-const { paginateRest } = __webpack_require__(299);
-
-function paginatePlugin(octokit) {
-  Object.assign(octokit, paginateRest(octokit));
 }
 
 
@@ -3162,89 +3393,6 @@ module.exports = PQueue;
 
 /***/ }),
 
-/***/ 190:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = authenticationPlugin;
-
-const { createTokenAuth } = __webpack_require__(813);
-const { Deprecation } = __webpack_require__(692);
-const once = __webpack_require__(969);
-
-const beforeRequest = __webpack_require__(863);
-const requestError = __webpack_require__(293);
-const validate = __webpack_require__(954);
-const withAuthorizationPrefix = __webpack_require__(143);
-
-const deprecateAuthBasic = once((log, deprecation) => log.warn(deprecation));
-const deprecateAuthObject = once((log, deprecation) => log.warn(deprecation));
-
-function authenticationPlugin(octokit, options) {
-  // If `options.authStrategy` is set then use it and pass in `options.auth`
-  if (options.authStrategy) {
-    const auth = options.authStrategy(options.auth);
-    octokit.hook.wrap("request", auth.hook);
-    octokit.auth = auth;
-    return;
-  }
-
-  // If neither `options.authStrategy` nor `options.auth` are set, the `octokit` instance
-  // is unauthenticated. The `octokit.auth()` method is a no-op and no request hook is registred.
-  if (!options.auth) {
-    octokit.auth = () =>
-      Promise.resolve({
-        type: "unauthenticated"
-      });
-    return;
-  }
-
-  const isBasicAuthString =
-    typeof options.auth === "string" &&
-    /^basic/.test(withAuthorizationPrefix(options.auth));
-
-  // If only `options.auth` is set to a string, use the default token authentication strategy.
-  if (typeof options.auth === "string" && !isBasicAuthString) {
-    const auth = createTokenAuth(options.auth);
-    octokit.hook.wrap("request", auth.hook);
-    octokit.auth = auth;
-    return;
-  }
-
-  // Otherwise log a deprecation message
-  const [deprecationMethod, deprecationMessapge] = isBasicAuthString
-    ? [
-        deprecateAuthBasic,
-        'Setting the "new Octokit({ auth })" option to a Basic Auth string is deprecated. Use https://github.com/octokit/auth-basic.js instead. See (https://octokit.github.io/rest.js/#authentication)'
-      ]
-    : [
-        deprecateAuthObject,
-        'Setting the "new Octokit({ auth })" option to an object without also setting the "authStrategy" option is deprecated and will be removed in v17. See (https://octokit.github.io/rest.js/#authentication)'
-      ];
-  deprecationMethod(
-    octokit.log,
-    new Deprecation("[@octokit/rest] " + deprecationMessapge)
-  );
-
-  octokit.auth = () =>
-    Promise.resolve({
-      type: "deprecated",
-      message: deprecationMessapge
-    });
-
-  validate(options.auth);
-
-  const state = {
-    octokit,
-    auth: options.auth
-  };
-
-  octokit.hook.before("request", beforeRequest.bind(null, state));
-  octokit.hook.error("request", requestError.bind(null, state));
-}
-
-
-/***/ }),
-
 /***/ 191:
 /***/ (function(module) {
 
@@ -3305,6 +3453,25 @@ function checkMode (stat, options) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -3314,14 +3481,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
-    return result;
-};
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.createPostMessageArguments = void 0;
 const github = __importStar(__webpack_require__(469));
 const core = __importStar(__webpack_require__(393));
 const web_api_1 = __webpack_require__(114);
@@ -3344,6 +3505,7 @@ function run() {
             const username = core.getInput('username');
             const color = colorCodes.get(core.getInput('color')) || core.getInput('color');
             const verbose = core.getInput('verbose') === 'true';
+            const unfurl = core.getInput('unfurl') !== 'false';
             const customPayload = core.getInput('custom_payload') !== ''
                 ? JSON.parse(core.getInput('custom_payload'))
                 : undefined;
@@ -3351,7 +3513,7 @@ function run() {
             const { payload, ref, eventName, workflow } = github.context;
             const runId = process.env['GITHUB_RUN_ID'] || '';
             const elements = yield createGitHubContextElements(owner, repo, payload, ref, eventName, workflow, runId);
-            const args = yield createPostMessageArguments(channel, message, username, elements, verbose, color, customPayload);
+            const args = yield createPostMessageArguments(channel, message, username, elements, verbose, color, unfurl, customPayload);
             yield client.chat.postMessage(args);
         }
         catch (e) {
@@ -3360,15 +3522,15 @@ function run() {
         }
     });
 }
-function createPostMessageArguments(channel, message, username, elements, verbose, color, customPayload) {
+function createPostMessageArguments(channel, message, username, elements, verbose, color, unfurl, customPayload) {
     return __awaiter(this, void 0, void 0, function* () {
         const args = {
             channel,
             text: message,
             username,
             link_names: true,
-            unfurl_links: true,
-            unfurl_media: true
+            unfurl_links: unfurl,
+            unfurl_media: unfurl
         };
         if (customPayload) {
             args.blocks = customPayload.blocks;
@@ -3483,39 +3645,9 @@ run();
 /***/ }),
 
 /***/ 211:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
-
-var osName = _interopDefault(__webpack_require__(2));
-
-function getUserAgent() {
-  try {
-    return `Node.js/${process.version.substr(1)} (${osName()}; ${process.arch})`;
-  } catch (error) {
-    if (/wmic os get Caption/.test(error.message)) {
-      return "Windows <version undetectable>";
-    }
-
-    return "<environment undetectable>";
-  }
-}
-
-exports.getUserAgent = getUserAgent;
-//# sourceMappingURL=index.js.map
-
-
-/***/ }),
-
-/***/ 215:
 /***/ (function(module) {
 
-module.exports = {"name":"@octokit/rest","version":"16.43.1","publishConfig":{"access":"public"},"description":"GitHub REST API client for Node.js","keywords":["octokit","github","rest","api-client"],"author":"Gregor Martynus (https://github.com/gr2m)","contributors":[{"name":"Mike de Boer","email":"info@mikedeboer.nl"},{"name":"Fabian Jakobs","email":"fabian@c9.io"},{"name":"Joe Gallo","email":"joe@brassafrax.com"},{"name":"Gregor Martynus","url":"https://github.com/gr2m"}],"repository":"https://github.com/octokit/rest.js","dependencies":{"@octokit/auth-token":"^2.4.0","@octokit/plugin-paginate-rest":"^1.1.1","@octokit/plugin-request-log":"^1.0.0","@octokit/plugin-rest-endpoint-methods":"2.4.0","@octokit/request":"^5.2.0","@octokit/request-error":"^1.0.2","atob-lite":"^2.0.0","before-after-hook":"^2.0.0","btoa-lite":"^1.0.0","deprecation":"^2.0.0","lodash.get":"^4.4.2","lodash.set":"^4.3.2","lodash.uniq":"^4.5.0","octokit-pagination-methods":"^1.1.0","once":"^1.4.0","universal-user-agent":"^4.0.0"},"devDependencies":{"@gimenete/type-writer":"^0.1.3","@octokit/auth":"^1.1.1","@octokit/fixtures-server":"^5.0.6","@octokit/graphql":"^4.2.0","@types/node":"^13.1.0","bundlesize":"^0.18.0","chai":"^4.1.2","compression-webpack-plugin":"^3.1.0","cypress":"^3.0.0","glob":"^7.1.2","http-proxy-agent":"^4.0.0","lodash.camelcase":"^4.3.0","lodash.merge":"^4.6.1","lodash.upperfirst":"^4.3.1","lolex":"^5.1.2","mkdirp":"^1.0.0","mocha":"^7.0.1","mustache":"^4.0.0","nock":"^11.3.3","npm-run-all":"^4.1.2","nyc":"^15.0.0","prettier":"^1.14.2","proxy":"^1.0.0","semantic-release":"^17.0.0","sinon":"^8.0.0","sinon-chai":"^3.0.0","sort-keys":"^4.0.0","string-to-arraybuffer":"^1.0.0","string-to-jsdoc-comment":"^1.0.0","typescript":"^3.3.1","webpack":"^4.0.0","webpack-bundle-analyzer":"^3.0.0","webpack-cli":"^3.0.0"},"types":"index.d.ts","scripts":{"coverage":"nyc report --reporter=html && open coverage/index.html","lint":"prettier --check '{lib,plugins,scripts,test}/**/*.{js,json,ts}' 'docs/*.{js,json}' 'docs/src/**/*' index.js README.md package.json","lint:fix":"prettier --write '{lib,plugins,scripts,test}/**/*.{js,json,ts}' 'docs/*.{js,json}' 'docs/src/**/*' index.js README.md package.json","pretest":"npm run -s lint","test":"nyc mocha test/mocha-node-setup.js \"test/*/**/*-test.js\"","test:browser":"cypress run --browser chrome","build":"npm-run-all build:*","build:ts":"npm run -s update-endpoints:typescript","prebuild:browser":"mkdirp dist/","build:browser":"npm-run-all build:browser:*","build:browser:development":"webpack --mode development --entry . --output-library=Octokit --output=./dist/octokit-rest.js --profile --json > dist/bundle-stats.json","build:browser:production":"webpack --mode production --entry . --plugin=compression-webpack-plugin --output-library=Octokit --output-path=./dist --output-filename=octokit-rest.min.js --devtool source-map","generate-bundle-report":"webpack-bundle-analyzer dist/bundle-stats.json --mode=static --no-open --report dist/bundle-report.html","update-endpoints":"npm-run-all update-endpoints:*","update-endpoints:fetch-json":"node scripts/update-endpoints/fetch-json","update-endpoints:typescript":"node scripts/update-endpoints/typescript","prevalidate:ts":"npm run -s build:ts","validate:ts":"tsc --target es6 --noImplicitAny index.d.ts","postvalidate:ts":"tsc --noEmit --target es6 test/typescript-validate.ts","start-fixtures-server":"octokit-fixtures-server"},"license":"MIT","files":["index.js","index.d.ts","lib","plugins"],"nyc":{"ignore":["test"]},"release":{"publish":["@semantic-release/npm",{"path":"@semantic-release/github","assets":["dist/*","!dist/*.map.gz"]}]},"bundlesize":[{"path":"./dist/octokit-rest.min.js.gz","maxSize":"33 kB"}]};
+module.exports = require("https");
 
 /***/ }),
 
@@ -3909,6 +4041,68 @@ function localstorage() {
 
 /***/ }),
 
+/***/ 240:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = authenticationRequestError;
+
+const { RequestError } = __webpack_require__(463);
+
+function authenticationRequestError(state, error, options) {
+  /* istanbul ignore next */
+  if (!error.headers) throw error;
+
+  const otpRequired = /required/.test(error.headers["x-github-otp"] || "");
+  // handle "2FA required" error only
+  if (error.status !== 401 || !otpRequired) {
+    throw error;
+  }
+
+  if (
+    error.status === 401 &&
+    otpRequired &&
+    error.request &&
+    error.request.headers["x-github-otp"]
+  ) {
+    throw new RequestError(
+      "Invalid one-time password for two-factor authentication",
+      401,
+      {
+        headers: error.headers,
+        request: options
+      }
+    );
+  }
+
+  if (typeof state.auth.on2fa !== "function") {
+    throw new RequestError(
+      "2FA required, but options.on2fa is not a function. See https://github.com/octokit/rest.js#authentication",
+      401,
+      {
+        headers: error.headers,
+        request: options
+      }
+    );
+  }
+
+  return Promise.resolve()
+    .then(() => {
+      return state.auth.on2fa();
+    })
+    .then(oneTimePassword => {
+      const newOptions = Object.assign(options, {
+        headers: Object.assign(
+          { "x-github-otp": oneTimePassword },
+          options.headers
+        )
+      });
+      return state.octokit.request(newOptions);
+    });
+}
+
+
+/***/ }),
+
 /***/ 247:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -3916,7 +4110,7 @@ function localstorage() {
 
 const os = __webpack_require__(87);
 const tty = __webpack_require__(867);
-const hasFlag = __webpack_require__(559);
+const hasFlag = __webpack_require__(882);
 
 const {env} = process;
 
@@ -4522,170 +4716,6 @@ module.exports = InterceptorManager;
 
 /***/ }),
 
-/***/ 293:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = authenticationRequestError;
-
-const { RequestError } = __webpack_require__(463);
-
-function authenticationRequestError(state, error, options) {
-  if (!error.headers) throw error;
-
-  const otpRequired = /required/.test(error.headers["x-github-otp"] || "");
-  // handle "2FA required" error only
-  if (error.status !== 401 || !otpRequired) {
-    throw error;
-  }
-
-  if (
-    error.status === 401 &&
-    otpRequired &&
-    error.request &&
-    error.request.headers["x-github-otp"]
-  ) {
-    if (state.otp) {
-      delete state.otp; // no longer valid, request again
-    } else {
-      throw new RequestError(
-        "Invalid one-time password for two-factor authentication",
-        401,
-        {
-          headers: error.headers,
-          request: options
-        }
-      );
-    }
-  }
-
-  if (typeof state.auth.on2fa !== "function") {
-    throw new RequestError(
-      "2FA required, but options.on2fa is not a function. See https://github.com/octokit/rest.js#authentication",
-      401,
-      {
-        headers: error.headers,
-        request: options
-      }
-    );
-  }
-
-  return Promise.resolve()
-    .then(() => {
-      return state.auth.on2fa();
-    })
-    .then(oneTimePassword => {
-      const newOptions = Object.assign(options, {
-        headers: Object.assign(options.headers, {
-          "x-github-otp": oneTimePassword
-        })
-      });
-      return state.octokit.request(newOptions).then(response => {
-        // If OTP still valid, then persist it for following requests
-        state.otp = oneTimePassword;
-        return response;
-      });
-    });
-}
-
-
-/***/ }),
-
-/***/ 294:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = parseOptions;
-
-const { Deprecation } = __webpack_require__(692);
-const { getUserAgent } = __webpack_require__(796);
-const once = __webpack_require__(969);
-
-const pkg = __webpack_require__(215);
-
-const deprecateOptionsTimeout = once((log, deprecation) =>
-  log.warn(deprecation)
-);
-const deprecateOptionsAgent = once((log, deprecation) => log.warn(deprecation));
-const deprecateOptionsHeaders = once((log, deprecation) =>
-  log.warn(deprecation)
-);
-
-function parseOptions(options, log, hook) {
-  if (options.headers) {
-    options.headers = Object.keys(options.headers).reduce((newObj, key) => {
-      newObj[key.toLowerCase()] = options.headers[key];
-      return newObj;
-    }, {});
-  }
-
-  const clientDefaults = {
-    headers: options.headers || {},
-    request: options.request || {},
-    mediaType: {
-      previews: [],
-      format: ""
-    }
-  };
-
-  if (options.baseUrl) {
-    clientDefaults.baseUrl = options.baseUrl;
-  }
-
-  if (options.userAgent) {
-    clientDefaults.headers["user-agent"] = options.userAgent;
-  }
-
-  if (options.previews) {
-    clientDefaults.mediaType.previews = options.previews;
-  }
-
-  if (options.timeZone) {
-    clientDefaults.headers["time-zone"] = options.timeZone;
-  }
-
-  if (options.timeout) {
-    deprecateOptionsTimeout(
-      log,
-      new Deprecation(
-        "[@octokit/rest] new Octokit({timeout}) is deprecated. Use {request: {timeout}} instead. See https://github.com/octokit/request.js#request"
-      )
-    );
-    clientDefaults.request.timeout = options.timeout;
-  }
-
-  if (options.agent) {
-    deprecateOptionsAgent(
-      log,
-      new Deprecation(
-        "[@octokit/rest] new Octokit({agent}) is deprecated. Use {request: {agent}} instead. See https://github.com/octokit/request.js#request"
-      )
-    );
-    clientDefaults.request.agent = options.agent;
-  }
-
-  if (options.headers) {
-    deprecateOptionsHeaders(
-      log,
-      new Deprecation(
-        "[@octokit/rest] new Octokit({headers}) is deprecated. Use {userAgent, previews} instead. See https://github.com/octokit/request.js#request"
-      )
-    );
-  }
-
-  const userAgentOption = clientDefaults.headers["user-agent"];
-  const defaultUserAgent = `octokit.js/${pkg.version} ${getUserAgent()}`;
-
-  clientDefaults.headers["user-agent"] = [userAgentOption, defaultUserAgent]
-    .filter(Boolean)
-    .join(" ");
-
-  clientDefaults.request.hook = hook.bind(null, "request");
-
-  return clientDefaults;
-}
-
-
-/***/ }),
-
 /***/ 297:
 /***/ (function(module) {
 
@@ -4704,156 +4734,6 @@ module.exports = class HttpError extends Error {
     this.headers = headers
   }
 }
-
-
-/***/ }),
-
-/***/ 299:
-/***/ (function(__unusedmodule, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-const VERSION = "1.1.2";
-
-/**
- * Some “list” response that can be paginated have a different response structure
- *
- * They have a `total_count` key in the response (search also has `incomplete_results`,
- * /installation/repositories also has `repository_selection`), as well as a key with
- * the list of the items which name varies from endpoint to endpoint:
- *
- * - https://developer.github.com/v3/search/#example (key `items`)
- * - https://developer.github.com/v3/checks/runs/#response-3 (key: `check_runs`)
- * - https://developer.github.com/v3/checks/suites/#response-1 (key: `check_suites`)
- * - https://developer.github.com/v3/apps/installations/#list-repositories (key: `repositories`)
- * - https://developer.github.com/v3/apps/installations/#list-installations-for-a-user (key `installations`)
- *
- * Octokit normalizes these responses so that paginated results are always returned following
- * the same structure. One challenge is that if the list response has only one page, no Link
- * header is provided, so this header alone is not sufficient to check wether a response is
- * paginated or not. For the exceptions with the namespace, a fallback check for the route
- * paths has to be added in order to normalize the response. We cannot check for the total_count
- * property because it also exists in the response of Get the combined status for a specific ref.
- */
-const REGEX = [/^\/search\//, /^\/repos\/[^/]+\/[^/]+\/commits\/[^/]+\/(check-runs|check-suites)([^/]|$)/, /^\/installation\/repositories([^/]|$)/, /^\/user\/installations([^/]|$)/, /^\/repos\/[^/]+\/[^/]+\/actions\/secrets([^/]|$)/, /^\/repos\/[^/]+\/[^/]+\/actions\/workflows(\/[^/]+\/runs)?([^/]|$)/, /^\/repos\/[^/]+\/[^/]+\/actions\/runs(\/[^/]+\/(artifacts|jobs))?([^/]|$)/];
-function normalizePaginatedListResponse(octokit, url, response) {
-  const path = url.replace(octokit.request.endpoint.DEFAULTS.baseUrl, "");
-  const responseNeedsNormalization = REGEX.find(regex => regex.test(path));
-  if (!responseNeedsNormalization) return; // keep the additional properties intact as there is currently no other way
-  // to retrieve the same information.
-
-  const incompleteResults = response.data.incomplete_results;
-  const repositorySelection = response.data.repository_selection;
-  const totalCount = response.data.total_count;
-  delete response.data.incomplete_results;
-  delete response.data.repository_selection;
-  delete response.data.total_count;
-  const namespaceKey = Object.keys(response.data)[0];
-  const data = response.data[namespaceKey];
-  response.data = data;
-
-  if (typeof incompleteResults !== "undefined") {
-    response.data.incomplete_results = incompleteResults;
-  }
-
-  if (typeof repositorySelection !== "undefined") {
-    response.data.repository_selection = repositorySelection;
-  }
-
-  response.data.total_count = totalCount;
-  Object.defineProperty(response.data, namespaceKey, {
-    get() {
-      octokit.log.warn(`[@octokit/paginate-rest] "response.data.${namespaceKey}" is deprecated for "GET ${path}". Get the results directly from "response.data"`);
-      return Array.from(data);
-    }
-
-  });
-}
-
-function iterator(octokit, route, parameters) {
-  const options = octokit.request.endpoint(route, parameters);
-  const method = options.method;
-  const headers = options.headers;
-  let url = options.url;
-  return {
-    [Symbol.asyncIterator]: () => ({
-      next() {
-        if (!url) {
-          return Promise.resolve({
-            done: true
-          });
-        }
-
-        return octokit.request({
-          method,
-          url,
-          headers
-        }).then(response => {
-          normalizePaginatedListResponse(octokit, url, response); // `response.headers.link` format:
-          // '<https://api.github.com/users/aseemk/followers?page=2>; rel="next", <https://api.github.com/users/aseemk/followers?page=2>; rel="last"'
-          // sets `url` to undefined if "next" URL is not present or `link` header is not set
-
-          url = ((response.headers.link || "").match(/<([^>]+)>;\s*rel="next"/) || [])[1];
-          return {
-            value: response
-          };
-        });
-      }
-
-    })
-  };
-}
-
-function paginate(octokit, route, parameters, mapFn) {
-  if (typeof parameters === "function") {
-    mapFn = parameters;
-    parameters = undefined;
-  }
-
-  return gather(octokit, [], iterator(octokit, route, parameters)[Symbol.asyncIterator](), mapFn);
-}
-
-function gather(octokit, results, iterator, mapFn) {
-  return iterator.next().then(result => {
-    if (result.done) {
-      return results;
-    }
-
-    let earlyExit = false;
-
-    function done() {
-      earlyExit = true;
-    }
-
-    results = results.concat(mapFn ? mapFn(result.value, done) : result.value.data);
-
-    if (earlyExit) {
-      return results;
-    }
-
-    return gather(octokit, results, iterator, mapFn);
-  });
-}
-
-/**
- * @param octokit Octokit instance
- * @param options Options passed to Octokit constructor
- */
-
-function paginateRest(octokit) {
-  return {
-    paginate: Object.assign(paginate.bind(null, octokit), {
-      iterator: iterator.bind(null, octokit)
-    })
-  };
-}
-paginateRest.VERSION = VERSION;
-
-exports.paginateRest = paginateRest;
-//# sourceMappingURL=index.js.map
 
 
 /***/ }),
@@ -5024,6 +4904,156 @@ module.exports = __webpack_require__(600);
 
 /***/ }),
 
+/***/ 322:
+/***/ (function(__unusedmodule, exports) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+const VERSION = "1.1.2";
+
+/**
+ * Some “list” response that can be paginated have a different response structure
+ *
+ * They have a `total_count` key in the response (search also has `incomplete_results`,
+ * /installation/repositories also has `repository_selection`), as well as a key with
+ * the list of the items which name varies from endpoint to endpoint:
+ *
+ * - https://developer.github.com/v3/search/#example (key `items`)
+ * - https://developer.github.com/v3/checks/runs/#response-3 (key: `check_runs`)
+ * - https://developer.github.com/v3/checks/suites/#response-1 (key: `check_suites`)
+ * - https://developer.github.com/v3/apps/installations/#list-repositories (key: `repositories`)
+ * - https://developer.github.com/v3/apps/installations/#list-installations-for-a-user (key `installations`)
+ *
+ * Octokit normalizes these responses so that paginated results are always returned following
+ * the same structure. One challenge is that if the list response has only one page, no Link
+ * header is provided, so this header alone is not sufficient to check wether a response is
+ * paginated or not. For the exceptions with the namespace, a fallback check for the route
+ * paths has to be added in order to normalize the response. We cannot check for the total_count
+ * property because it also exists in the response of Get the combined status for a specific ref.
+ */
+const REGEX = [/^\/search\//, /^\/repos\/[^/]+\/[^/]+\/commits\/[^/]+\/(check-runs|check-suites)([^/]|$)/, /^\/installation\/repositories([^/]|$)/, /^\/user\/installations([^/]|$)/, /^\/repos\/[^/]+\/[^/]+\/actions\/secrets([^/]|$)/, /^\/repos\/[^/]+\/[^/]+\/actions\/workflows(\/[^/]+\/runs)?([^/]|$)/, /^\/repos\/[^/]+\/[^/]+\/actions\/runs(\/[^/]+\/(artifacts|jobs))?([^/]|$)/];
+function normalizePaginatedListResponse(octokit, url, response) {
+  const path = url.replace(octokit.request.endpoint.DEFAULTS.baseUrl, "");
+  const responseNeedsNormalization = REGEX.find(regex => regex.test(path));
+  if (!responseNeedsNormalization) return; // keep the additional properties intact as there is currently no other way
+  // to retrieve the same information.
+
+  const incompleteResults = response.data.incomplete_results;
+  const repositorySelection = response.data.repository_selection;
+  const totalCount = response.data.total_count;
+  delete response.data.incomplete_results;
+  delete response.data.repository_selection;
+  delete response.data.total_count;
+  const namespaceKey = Object.keys(response.data)[0];
+  const data = response.data[namespaceKey];
+  response.data = data;
+
+  if (typeof incompleteResults !== "undefined") {
+    response.data.incomplete_results = incompleteResults;
+  }
+
+  if (typeof repositorySelection !== "undefined") {
+    response.data.repository_selection = repositorySelection;
+  }
+
+  response.data.total_count = totalCount;
+  Object.defineProperty(response.data, namespaceKey, {
+    get() {
+      octokit.log.warn(`[@octokit/paginate-rest] "response.data.${namespaceKey}" is deprecated for "GET ${path}". Get the results directly from "response.data"`);
+      return Array.from(data);
+    }
+
+  });
+}
+
+function iterator(octokit, route, parameters) {
+  const options = octokit.request.endpoint(route, parameters);
+  const method = options.method;
+  const headers = options.headers;
+  let url = options.url;
+  return {
+    [Symbol.asyncIterator]: () => ({
+      next() {
+        if (!url) {
+          return Promise.resolve({
+            done: true
+          });
+        }
+
+        return octokit.request({
+          method,
+          url,
+          headers
+        }).then(response => {
+          normalizePaginatedListResponse(octokit, url, response); // `response.headers.link` format:
+          // '<https://api.github.com/users/aseemk/followers?page=2>; rel="next", <https://api.github.com/users/aseemk/followers?page=2>; rel="last"'
+          // sets `url` to undefined if "next" URL is not present or `link` header is not set
+
+          url = ((response.headers.link || "").match(/<([^>]+)>;\s*rel="next"/) || [])[1];
+          return {
+            value: response
+          };
+        });
+      }
+
+    })
+  };
+}
+
+function paginate(octokit, route, parameters, mapFn) {
+  if (typeof parameters === "function") {
+    mapFn = parameters;
+    parameters = undefined;
+  }
+
+  return gather(octokit, [], iterator(octokit, route, parameters)[Symbol.asyncIterator](), mapFn);
+}
+
+function gather(octokit, results, iterator, mapFn) {
+  return iterator.next().then(result => {
+    if (result.done) {
+      return results;
+    }
+
+    let earlyExit = false;
+
+    function done() {
+      earlyExit = true;
+    }
+
+    results = results.concat(mapFn ? mapFn(result.value, done) : result.value.data);
+
+    if (earlyExit) {
+      return results;
+    }
+
+    return gather(octokit, results, iterator, mapFn);
+  });
+}
+
+/**
+ * @param octokit Octokit instance
+ * @param options Options passed to Octokit constructor
+ */
+
+function paginateRest(octokit) {
+  return {
+    paginate: Object.assign(paginate.bind(null, octokit), {
+      iterator: iterator.bind(null, octokit)
+    })
+  };
+}
+paginateRest.VERSION = VERSION;
+
+exports.paginateRest = paginateRest;
+//# sourceMappingURL=index.js.map
+
+
+/***/ }),
+
 /***/ 323:
 /***/ (function(module) {
 
@@ -5143,222 +5173,15 @@ function hasLastPage (link) {
 
 /***/ }),
 
-/***/ 348:
+/***/ 341:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
-"use strict";
+module.exports = octokitValidate;
 
+const validate = __webpack_require__(63);
 
-module.exports = validate;
-
-const { RequestError } = __webpack_require__(463);
-const get = __webpack_require__(854);
-const set = __webpack_require__(883);
-
-function validate(octokit, options) {
-  if (!options.request.validate) {
-    return;
-  }
-  const { validate: params } = options.request;
-
-  Object.keys(params).forEach(parameterName => {
-    const parameter = get(params, parameterName);
-
-    const expectedType = parameter.type;
-    let parentParameterName;
-    let parentValue;
-    let parentParamIsPresent = true;
-    let parentParameterIsArray = false;
-
-    if (/\./.test(parameterName)) {
-      parentParameterName = parameterName.replace(/\.[^.]+$/, "");
-      parentParameterIsArray = parentParameterName.slice(-2) === "[]";
-      if (parentParameterIsArray) {
-        parentParameterName = parentParameterName.slice(0, -2);
-      }
-      parentValue = get(options, parentParameterName);
-      parentParamIsPresent =
-        parentParameterName === "headers" ||
-        (typeof parentValue === "object" && parentValue !== null);
-    }
-
-    const values = parentParameterIsArray
-      ? (get(options, parentParameterName) || []).map(
-          value => value[parameterName.split(/\./).pop()]
-        )
-      : [get(options, parameterName)];
-
-    values.forEach((value, i) => {
-      const valueIsPresent = typeof value !== "undefined";
-      const valueIsNull = value === null;
-      const currentParameterName = parentParameterIsArray
-        ? parameterName.replace(/\[\]/, `[${i}]`)
-        : parameterName;
-
-      if (!parameter.required && !valueIsPresent) {
-        return;
-      }
-
-      // if the parent parameter is of type object but allows null
-      // then the child parameters can be ignored
-      if (!parentParamIsPresent) {
-        return;
-      }
-
-      if (parameter.allowNull && valueIsNull) {
-        return;
-      }
-
-      if (!parameter.allowNull && valueIsNull) {
-        throw new RequestError(
-          `'${currentParameterName}' cannot be null`,
-          400,
-          {
-            request: options
-          }
-        );
-      }
-
-      if (parameter.required && !valueIsPresent) {
-        throw new RequestError(
-          `Empty value for parameter '${currentParameterName}': ${JSON.stringify(
-            value
-          )}`,
-          400,
-          {
-            request: options
-          }
-        );
-      }
-
-      // parse to integer before checking for enum
-      // so that string "1" will match enum with number 1
-      if (expectedType === "integer") {
-        const unparsedValue = value;
-        value = parseInt(value, 10);
-        if (isNaN(value)) {
-          throw new RequestError(
-            `Invalid value for parameter '${currentParameterName}': ${JSON.stringify(
-              unparsedValue
-            )} is NaN`,
-            400,
-            {
-              request: options
-            }
-          );
-        }
-      }
-
-      if (parameter.enum && parameter.enum.indexOf(String(value)) === -1) {
-        throw new RequestError(
-          `Invalid value for parameter '${currentParameterName}': ${JSON.stringify(
-            value
-          )}`,
-          400,
-          {
-            request: options
-          }
-        );
-      }
-
-      if (parameter.validation) {
-        const regex = new RegExp(parameter.validation);
-        if (!regex.test(value)) {
-          throw new RequestError(
-            `Invalid value for parameter '${currentParameterName}': ${JSON.stringify(
-              value
-            )}`,
-            400,
-            {
-              request: options
-            }
-          );
-        }
-      }
-
-      if (expectedType === "object" && typeof value === "string") {
-        try {
-          value = JSON.parse(value);
-        } catch (exception) {
-          throw new RequestError(
-            `JSON parse error of value for parameter '${currentParameterName}': ${JSON.stringify(
-              value
-            )}`,
-            400,
-            {
-              request: options
-            }
-          );
-        }
-      }
-
-      set(options, parameter.mapTo || currentParameterName, value);
-    });
-  });
-
-  return options;
-}
-
-
-/***/ }),
-
-/***/ 349:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = authenticationRequestError;
-
-const { RequestError } = __webpack_require__(463);
-
-function authenticationRequestError(state, error, options) {
-  /* istanbul ignore next */
-  if (!error.headers) throw error;
-
-  const otpRequired = /required/.test(error.headers["x-github-otp"] || "");
-  // handle "2FA required" error only
-  if (error.status !== 401 || !otpRequired) {
-    throw error;
-  }
-
-  if (
-    error.status === 401 &&
-    otpRequired &&
-    error.request &&
-    error.request.headers["x-github-otp"]
-  ) {
-    throw new RequestError(
-      "Invalid one-time password for two-factor authentication",
-      401,
-      {
-        headers: error.headers,
-        request: options
-      }
-    );
-  }
-
-  if (typeof state.auth.on2fa !== "function") {
-    throw new RequestError(
-      "2FA required, but options.on2fa is not a function. See https://github.com/octokit/rest.js#authentication",
-      401,
-      {
-        headers: error.headers,
-        request: options
-      }
-    );
-  }
-
-  return Promise.resolve()
-    .then(() => {
-      return state.auth.on2fa();
-    })
-    .then(oneTimePassword => {
-      const newOptions = Object.assign(options, {
-        headers: Object.assign(
-          { "x-github-otp": oneTimePassword },
-          options.headers
-        )
-      });
-      return state.octokit.request(newOptions);
-    });
+function octokitValidate(octokit) {
+  octokit.hook.before("request", validate.bind(null, octokit));
 }
 
 
@@ -5374,7 +5197,7 @@ var utils = __webpack_require__(35);
 var bind = __webpack_require__(727);
 var Axios = __webpack_require__(779);
 var mergeConfig = __webpack_require__(825);
-var defaults = __webpack_require__(774);
+var defaults = __webpack_require__(529);
 
 /**
  * Create an instance of Axios
@@ -5529,7 +5352,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
 var isPlainObject = _interopDefault(__webpack_require__(626));
-var universalUserAgent = __webpack_require__(562);
+var universalUserAgent = __webpack_require__(796);
 
 function lowercaseKeys(object) {
   if (!object) {
@@ -6174,42 +5997,6 @@ exports.getState = getState;
 
 /***/ }),
 
-/***/ 402:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = Octokit;
-
-const { request } = __webpack_require__(753);
-const Hook = __webpack_require__(523);
-
-const parseClientOptions = __webpack_require__(294);
-
-function Octokit(plugins, options) {
-  options = options || {};
-  const hook = new Hook.Collection();
-  const log = Object.assign(
-    {
-      debug: () => {},
-      info: () => {},
-      warn: console.warn,
-      error: console.error
-    },
-    options && options.log
-  );
-  const api = {
-    hook,
-    log,
-    request: request.defaults(parseClientOptions(options, log, hook))
-  };
-
-  plugins.forEach(pluginFunction => pluginFunction(api, options));
-
-  return api;
-}
-
-
-/***/ }),
-
 /***/ 411:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -6234,6 +6021,96 @@ module.exports = function normalizeHeaderName(headers, normalizedName) {
 /***/ (function(module) {
 
 module.exports = require("stream");
+
+/***/ }),
+
+/***/ 414:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = authenticationBeforeRequest;
+
+const btoa = __webpack_require__(675);
+
+const withAuthorizationPrefix = __webpack_require__(85);
+
+function authenticationBeforeRequest(state, options) {
+  if (typeof state.auth === "string") {
+    options.headers.authorization = withAuthorizationPrefix(state.auth);
+    return;
+  }
+
+  if (state.auth.username) {
+    const hash = btoa(`${state.auth.username}:${state.auth.password}`);
+    options.headers.authorization = `Basic ${hash}`;
+    if (state.otp) {
+      options.headers["x-github-otp"] = state.otp;
+    }
+    return;
+  }
+
+  if (state.auth.clientId) {
+    // There is a special case for OAuth applications, when `clientId` and `clientSecret` is passed as
+    // Basic Authorization instead of query parameters. The only routes where that applies share the same
+    // URL though: `/applications/:client_id/tokens/:access_token`.
+    //
+    //  1. [Check an authorization](https://developer.github.com/v3/oauth_authorizations/#check-an-authorization)
+    //  2. [Reset an authorization](https://developer.github.com/v3/oauth_authorizations/#reset-an-authorization)
+    //  3. [Revoke an authorization for an application](https://developer.github.com/v3/oauth_authorizations/#revoke-an-authorization-for-an-application)
+    //
+    // We identify by checking the URL. It must merge both "/applications/:client_id/tokens/:access_token"
+    // as well as "/applications/123/tokens/token456"
+    if (/\/applications\/:?[\w_]+\/tokens\/:?[\w_]+($|\?)/.test(options.url)) {
+      const hash = btoa(`${state.auth.clientId}:${state.auth.clientSecret}`);
+      options.headers.authorization = `Basic ${hash}`;
+      return;
+    }
+
+    options.url += options.url.indexOf("?") === -1 ? "?" : "&";
+    options.url += `client_id=${state.auth.clientId}&client_secret=${state.auth.clientSecret}`;
+    return;
+  }
+
+  return Promise.resolve()
+
+    .then(() => {
+      return state.auth();
+    })
+
+    .then(authorization => {
+      options.headers.authorization = withAuthorizationPrefix(authorization);
+    });
+}
+
+
+/***/ }),
+
+/***/ 422:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+var osName = _interopDefault(__webpack_require__(2));
+
+function getUserAgent() {
+  try {
+    return `Node.js/${process.version.substr(1)} (${osName()}; ${process.arch})`;
+  } catch (error) {
+    if (/wmic os get Caption/.test(error.message)) {
+      return "Windows <version undetectable>";
+    }
+
+    throw error;
+  }
+}
+
+exports.getUserAgent = getUserAgent;
+//# sourceMappingURL=index.js.map
+
 
 /***/ }),
 
@@ -6330,20 +6207,6 @@ function errname(uv, code) {
 	return `Unknown system error ${code}`;
 }
 
-
-
-/***/ }),
-
-/***/ 430:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = octokitValidate;
-
-const validate = __webpack_require__(348);
-
-function octokitValidate(octokit) {
-  octokit.hook.before("request", validate.bind(null, octokit));
-}
 
 
 /***/ }),
@@ -6643,6 +6506,74 @@ function populateMaps (extensions, types) {
 
 /***/ }),
 
+/***/ 446:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = authenticationRequestError;
+
+const { RequestError } = __webpack_require__(463);
+
+function authenticationRequestError(state, error, options) {
+  if (!error.headers) throw error;
+
+  const otpRequired = /required/.test(error.headers["x-github-otp"] || "");
+  // handle "2FA required" error only
+  if (error.status !== 401 || !otpRequired) {
+    throw error;
+  }
+
+  if (
+    error.status === 401 &&
+    otpRequired &&
+    error.request &&
+    error.request.headers["x-github-otp"]
+  ) {
+    if (state.otp) {
+      delete state.otp; // no longer valid, request again
+    } else {
+      throw new RequestError(
+        "Invalid one-time password for two-factor authentication",
+        401,
+        {
+          headers: error.headers,
+          request: options
+        }
+      );
+    }
+  }
+
+  if (typeof state.auth.on2fa !== "function") {
+    throw new RequestError(
+      "2FA required, but options.on2fa is not a function. See https://github.com/octokit/rest.js#authentication",
+      401,
+      {
+        headers: error.headers,
+        request: options
+      }
+    );
+  }
+
+  return Promise.resolve()
+    .then(() => {
+      return state.auth.on2fa();
+    })
+    .then(oneTimePassword => {
+      const newOptions = Object.assign(options, {
+        headers: Object.assign(options.headers, {
+          "x-github-otp": oneTimePassword
+        })
+      });
+      return state.octokit.request(newOptions).then(response => {
+        // If OTP still valid, then persist it for following requests
+        state.otp = oneTimePassword;
+        return response;
+      });
+    });
+}
+
+
+/***/ }),
+
 /***/ 453:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -6745,7 +6676,7 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 var Stream = _interopDefault(__webpack_require__(413));
 var http = _interopDefault(__webpack_require__(605));
 var Url = _interopDefault(__webpack_require__(835));
-var https = _interopDefault(__webpack_require__(34));
+var https = _interopDefault(__webpack_require__(211));
 var zlib = _interopDefault(__webpack_require__(761));
 
 // Based on https://github.com/tmpvar/jsdom/blob/aa85b2abf07766ff7bf5c1f6daafb3726f2f2db5/lib/jsdom/living/blob.js
@@ -8513,7 +8444,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 // Originally pulled from https://github.com/JasonEtco/actions-toolkit/blob/master/src/github.ts
 const graphql_1 = __webpack_require__(898);
-const rest_1 = __webpack_require__(0);
+const rest_1 = __webpack_require__(741);
 const Context = __importStar(__webpack_require__(262));
 const httpClient = __importStar(__webpack_require__(539));
 // We need this in order to extend Octokit
@@ -10086,56 +10017,6 @@ function coerce (version) {
 
 /***/ }),
 
-/***/ 471:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = authenticationBeforeRequest;
-
-const btoa = __webpack_require__(675);
-const uniq = __webpack_require__(126);
-
-function authenticationBeforeRequest(state, options) {
-  if (!state.auth.type) {
-    return;
-  }
-
-  if (state.auth.type === "basic") {
-    const hash = btoa(`${state.auth.username}:${state.auth.password}`);
-    options.headers.authorization = `Basic ${hash}`;
-    return;
-  }
-
-  if (state.auth.type === "token") {
-    options.headers.authorization = `token ${state.auth.token}`;
-    return;
-  }
-
-  if (state.auth.type === "app") {
-    options.headers.authorization = `Bearer ${state.auth.token}`;
-    const acceptHeaders = options.headers.accept
-      .split(",")
-      .concat("application/vnd.github.machine-man-preview+json");
-    options.headers.accept = uniq(acceptHeaders)
-      .filter(Boolean)
-      .join(",");
-    return;
-  }
-
-  options.url += options.url.indexOf("?") === -1 ? "?" : "&";
-
-  if (state.auth.token) {
-    options.url += `access_token=${encodeURIComponent(state.auth.token)}`;
-    return;
-  }
-
-  const key = encodeURIComponent(state.auth.key);
-  const secret = encodeURIComponent(state.auth.secret);
-  options.url += `client_id=${key}&client_secret=${secret}`;
-}
-
-
-/***/ }),
-
 /***/ 489:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -10305,6 +10186,23 @@ module.exports = {"application/1d-interleaved-parityfec":{"source":"iana"},"appl
 
 /***/ }),
 
+/***/ 513:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = factory;
+
+const Octokit = __webpack_require__(135);
+const registerPlugin = __webpack_require__(861);
+
+function factory(plugins) {
+  const Api = Octokit.bind(null, plugins || []);
+  Api.plugin = registerPlugin.bind(null, plugins || []);
+  return Api;
+}
+
+
+/***/ }),
+
 /***/ 523:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -10372,9 +10270,104 @@ module.exports.Collection = Hook.Collection
 /***/ 529:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
-const factory = __webpack_require__(47);
+"use strict";
 
-module.exports = factory();
+
+var utils = __webpack_require__(35);
+var normalizeHeaderName = __webpack_require__(411);
+
+var DEFAULT_CONTENT_TYPE = {
+  'Content-Type': 'application/x-www-form-urlencoded'
+};
+
+function setContentTypeIfUnset(headers, value) {
+  if (!utils.isUndefined(headers) && utils.isUndefined(headers['Content-Type'])) {
+    headers['Content-Type'] = value;
+  }
+}
+
+function getDefaultAdapter() {
+  var adapter;
+  if (typeof XMLHttpRequest !== 'undefined') {
+    // For browsers use XHR adapter
+    adapter = __webpack_require__(219);
+  } else if (typeof process !== 'undefined' && Object.prototype.toString.call(process) === '[object process]') {
+    // For node use HTTP adapter
+    adapter = __webpack_require__(670);
+  }
+  return adapter;
+}
+
+var defaults = {
+  adapter: getDefaultAdapter(),
+
+  transformRequest: [function transformRequest(data, headers) {
+    normalizeHeaderName(headers, 'Accept');
+    normalizeHeaderName(headers, 'Content-Type');
+    if (utils.isFormData(data) ||
+      utils.isArrayBuffer(data) ||
+      utils.isBuffer(data) ||
+      utils.isStream(data) ||
+      utils.isFile(data) ||
+      utils.isBlob(data)
+    ) {
+      return data;
+    }
+    if (utils.isArrayBufferView(data)) {
+      return data.buffer;
+    }
+    if (utils.isURLSearchParams(data)) {
+      setContentTypeIfUnset(headers, 'application/x-www-form-urlencoded;charset=utf-8');
+      return data.toString();
+    }
+    if (utils.isObject(data)) {
+      setContentTypeIfUnset(headers, 'application/json;charset=utf-8');
+      return JSON.stringify(data);
+    }
+    return data;
+  }],
+
+  transformResponse: [function transformResponse(data) {
+    /*eslint no-param-reassign:0*/
+    if (typeof data === 'string') {
+      try {
+        data = JSON.parse(data);
+      } catch (e) { /* Ignore */ }
+    }
+    return data;
+  }],
+
+  /**
+   * A timeout in milliseconds to abort a request. If set to 0 (default) a
+   * timeout is not created.
+   */
+  timeout: 0,
+
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
+
+  maxContentLength: -1,
+
+  validateStatus: function validateStatus(status) {
+    return status >= 200 && status < 300;
+  }
+};
+
+defaults.headers = {
+  common: {
+    'Accept': 'application/json, text/plain, */*'
+  }
+};
+
+utils.forEach(['delete', 'get', 'head'], function forEachMethodNoData(method) {
+  defaults.headers[method] = {};
+});
+
+utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
+  defaults.headers[method] = utils.merge(DEFAULT_CONTENT_TYPE);
+});
+
+module.exports = defaults;
 
 
 /***/ }),
@@ -10395,6 +10388,34 @@ function hasFirstPage (link) {
 
 /***/ }),
 
+/***/ 538:
+/***/ (function(module) {
+
+module.exports = validateAuth;
+
+function validateAuth(auth) {
+  if (typeof auth === "string") {
+    return;
+  }
+
+  if (typeof auth === "function") {
+    return;
+  }
+
+  if (auth.username && auth.password) {
+    return;
+  }
+
+  if (auth.clientId && auth.clientSecret) {
+    return;
+  }
+
+  throw new Error(`Invalid "auth" option: ${JSON.stringify(auth)}`);
+}
+
+
+/***/ }),
+
 /***/ 539:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
@@ -10403,7 +10424,7 @@ function hasFirstPage (link) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const url = __webpack_require__(835);
 const http = __webpack_require__(605);
-const https = __webpack_require__(34);
+const https = __webpack_require__(211);
 const pm = __webpack_require__(950);
 let tunnel;
 var HttpCodes;
@@ -11210,7 +11231,7 @@ module.exports = isPlainObject;
 
 var url = __webpack_require__(835);
 var http = __webpack_require__(605);
-var https = __webpack_require__(34);
+var https = __webpack_require__(211);
 var assert = __webpack_require__(357);
 var Writable = __webpack_require__(413).Writable;
 var debug = __webpack_require__(72)("follow-redirects");
@@ -11565,2855 +11586,6 @@ function hasPreviousPage (link) {
 /***/ }),
 
 /***/ 559:
-/***/ (function(module) {
-
-"use strict";
-
-
-module.exports = (flag, argv = process.argv) => {
-	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
-	const position = argv.indexOf(prefix + flag);
-	const terminatorPosition = argv.indexOf('--');
-	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
-};
-
-
-/***/ }),
-
-/***/ 562:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
-
-var osName = _interopDefault(__webpack_require__(2));
-
-function getUserAgent() {
-  try {
-    return `Node.js/${process.version.substr(1)} (${osName()}; ${process.arch})`;
-  } catch (error) {
-    if (/wmic os get Caption/.test(error.message)) {
-      return "Windows <version undetectable>";
-    }
-
-    return "<environment undetectable>";
-  }
-}
-
-exports.getUserAgent = getUserAgent;
-//# sourceMappingURL=index.js.map
-
-
-/***/ }),
-
-/***/ 563:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = getPreviousPage
-
-const getPage = __webpack_require__(265)
-
-function getPreviousPage (octokit, link, headers) {
-  return getPage(octokit, link, 'prev', headers)
-}
-
-
-/***/ }),
-
-/***/ 564:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-
-var createError = __webpack_require__(26);
-
-/**
- * Resolve or reject a Promise based on response status.
- *
- * @param {Function} resolve A function that resolves the promise.
- * @param {Function} reject A function that rejects the promise.
- * @param {object} response The response.
- */
-module.exports = function settle(resolve, reject, response) {
-  var validateStatus = response.config.validateStatus;
-  if (!validateStatus || validateStatus(response.status)) {
-    resolve(response);
-  } else {
-    reject(createError(
-      'Request failed with status code ' + response.status,
-      response.config,
-      null,
-      response.request,
-      response
-    ));
-  }
-};
-
-
-/***/ }),
-
-/***/ 566:
-/***/ (function(module) {
-
-// API
-module.exports = abort;
-
-/**
- * Aborts leftover active jobs
- *
- * @param {object} state - current state object
- */
-function abort(state)
-{
-  Object.keys(state.jobs).forEach(clean.bind(state));
-
-  // reset leftover jobs
-  state.jobs = {};
-}
-
-/**
- * Cleans up leftover job by invoking abort function for the provided job id
- *
- * @this  state
- * @param {string|number} key - job id to abort
- */
-function clean(key)
-{
-  if (typeof this.jobs[key] == 'function')
-  {
-    this.jobs[key]();
-  }
-}
-
-
-/***/ }),
-
-/***/ 568:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-
-const path = __webpack_require__(622);
-const niceTry = __webpack_require__(948);
-const resolveCommand = __webpack_require__(489);
-const escape = __webpack_require__(462);
-const readShebang = __webpack_require__(389);
-const semver = __webpack_require__(470);
-
-const isWin = process.platform === 'win32';
-const isExecutableRegExp = /\.(?:com|exe)$/i;
-const isCmdShimRegExp = /node_modules[\\/].bin[\\/][^\\/]+\.cmd$/i;
-
-// `options.shell` is supported in Node ^4.8.0, ^5.7.0 and >= 6.0.0
-const supportsShellOption = niceTry(() => semver.satisfies(process.version, '^4.8.0 || ^5.7.0 || >= 6.0.0', true)) || false;
-
-function detectShebang(parsed) {
-    parsed.file = resolveCommand(parsed);
-
-    const shebang = parsed.file && readShebang(parsed.file);
-
-    if (shebang) {
-        parsed.args.unshift(parsed.file);
-        parsed.command = shebang;
-
-        return resolveCommand(parsed);
-    }
-
-    return parsed.file;
-}
-
-function parseNonShell(parsed) {
-    if (!isWin) {
-        return parsed;
-    }
-
-    // Detect & add support for shebangs
-    const commandFile = detectShebang(parsed);
-
-    // We don't need a shell if the command filename is an executable
-    const needsShell = !isExecutableRegExp.test(commandFile);
-
-    // If a shell is required, use cmd.exe and take care of escaping everything correctly
-    // Note that `forceShell` is an hidden option used only in tests
-    if (parsed.options.forceShell || needsShell) {
-        // Need to double escape meta chars if the command is a cmd-shim located in `node_modules/.bin/`
-        // The cmd-shim simply calls execute the package bin file with NodeJS, proxying any argument
-        // Because the escape of metachars with ^ gets interpreted when the cmd.exe is first called,
-        // we need to double escape them
-        const needsDoubleEscapeMetaChars = isCmdShimRegExp.test(commandFile);
-
-        // Normalize posix paths into OS compatible paths (e.g.: foo/bar -> foo\bar)
-        // This is necessary otherwise it will always fail with ENOENT in those cases
-        parsed.command = path.normalize(parsed.command);
-
-        // Escape command & arguments
-        parsed.command = escape.command(parsed.command);
-        parsed.args = parsed.args.map((arg) => escape.argument(arg, needsDoubleEscapeMetaChars));
-
-        const shellCommand = [parsed.command].concat(parsed.args).join(' ');
-
-        parsed.args = ['/d', '/s', '/c', `"${shellCommand}"`];
-        parsed.command = process.env.comspec || 'cmd.exe';
-        parsed.options.windowsVerbatimArguments = true; // Tell node's spawn that the arguments are already escaped
-    }
-
-    return parsed;
-}
-
-function parseShell(parsed) {
-    // If node supports the shell option, there's no need to mimic its behavior
-    if (supportsShellOption) {
-        return parsed;
-    }
-
-    // Mimic node shell option
-    // See https://github.com/nodejs/node/blob/b9f6a2dc059a1062776133f3d4fd848c4da7d150/lib/child_process.js#L335
-    const shellCommand = [parsed.command].concat(parsed.args).join(' ');
-
-    if (isWin) {
-        parsed.command = typeof parsed.options.shell === 'string' ? parsed.options.shell : process.env.comspec || 'cmd.exe';
-        parsed.args = ['/d', '/s', '/c', `"${shellCommand}"`];
-        parsed.options.windowsVerbatimArguments = true; // Tell node's spawn that the arguments are already escaped
-    } else {
-        if (typeof parsed.options.shell === 'string') {
-            parsed.command = parsed.options.shell;
-        } else if (process.platform === 'android') {
-            parsed.command = '/system/bin/sh';
-        } else {
-            parsed.command = '/bin/sh';
-        }
-
-        parsed.args = ['-c', shellCommand];
-    }
-
-    return parsed;
-}
-
-function parse(command, args, options) {
-    // Normalize arguments, similar to nodejs
-    if (args && !Array.isArray(args)) {
-        options = args;
-        args = null;
-    }
-
-    args = args ? args.slice(0) : []; // Clone array to avoid changing the original
-    options = Object.assign({}, options); // Clone object to avoid changing the original
-
-    // Build our parsed object
-    const parsed = {
-        command,
-        args,
-        options,
-        file: undefined,
-        original: {
-            command,
-            args,
-        },
-    };
-
-    // Delegate further parsing to shell or non-shell
-    return options.shell ? parseShell(parsed) : parseNonShell(parsed);
-}
-
-module.exports = parse;
-
-
-/***/ }),
-
-/***/ 577:
-/***/ (function(module) {
-
-module.exports = getPageLinks
-
-function getPageLinks (link) {
-  link = link.link || link.headers.link || ''
-
-  const links = {}
-
-  // link format:
-  // '<https://api.github.com/users/aseemk/followers?page=2>; rel="next", <https://api.github.com/users/aseemk/followers?page=2>; rel="last"'
-  link.replace(/<([^>]*)>;\s*rel="([\w]*)"/g, (m, uri, type) => {
-    links[type] = uri
-  })
-
-  return links
-}
-
-
-/***/ }),
-
-/***/ 589:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-
-var utils = __webpack_require__(35);
-
-/**
- * Transform the data for a request or a response
- *
- * @param {Object|String} data The data to be transformed
- * @param {Array} headers The headers for the request or response
- * @param {Array|Function} fns A single function or Array of functions
- * @returns {*} The resulting transformed data
- */
-module.exports = function transformData(data, headers, fns) {
-  /*eslint no-param-reassign:0*/
-  utils.forEach(fns, function transform(fn) {
-    data = fn(data, headers);
-  });
-
-  return data;
-};
-
-
-/***/ }),
-
-/***/ 590:
-/***/ (function(module) {
-
-"use strict";
-
-
-/**
- * Determines whether the specified URL is absolute
- *
- * @param {string} url The URL to test
- * @returns {boolean} True if the specified URL is absolute, otherwise false
- */
-module.exports = function isAbsoluteURL(url) {
-  // A URL is considered absolute if it begins with "<scheme>://" or "//" (protocol-relative URL).
-  // RFC 3986 defines scheme name as a sequence of characters beginning with a letter and followed
-  // by any combination of letters, digits, plus, period, or hyphen.
-  return /^([a-z][a-z\d\+\-\.]*:)?\/\//i.test(url);
-};
-
-
-/***/ }),
-
-/***/ 600:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-var RetryOperation = __webpack_require__(988);
-
-exports.operation = function(options) {
-  var timeouts = exports.timeouts(options);
-  return new RetryOperation(timeouts, {
-      forever: options && options.forever,
-      unref: options && options.unref,
-      maxRetryTime: options && options.maxRetryTime
-  });
-};
-
-exports.timeouts = function(options) {
-  if (options instanceof Array) {
-    return [].concat(options);
-  }
-
-  var opts = {
-    retries: 10,
-    factor: 2,
-    minTimeout: 1 * 1000,
-    maxTimeout: Infinity,
-    randomize: false
-  };
-  for (var key in options) {
-    opts[key] = options[key];
-  }
-
-  if (opts.minTimeout > opts.maxTimeout) {
-    throw new Error('minTimeout is greater than maxTimeout');
-  }
-
-  var timeouts = [];
-  for (var i = 0; i < opts.retries; i++) {
-    timeouts.push(this.createTimeout(i, opts));
-  }
-
-  if (options && options.forever && !timeouts.length) {
-    timeouts.push(this.createTimeout(i, opts));
-  }
-
-  // sort the array numerically ascending
-  timeouts.sort(function(a,b) {
-    return a - b;
-  });
-
-  return timeouts;
-};
-
-exports.createTimeout = function(attempt, opts) {
-  var random = (opts.randomize)
-    ? (Math.random() + 1)
-    : 1;
-
-  var timeout = Math.round(random * opts.minTimeout * Math.pow(opts.factor, attempt));
-  timeout = Math.min(timeout, opts.maxTimeout);
-
-  return timeout;
-};
-
-exports.wrap = function(obj, options, methods) {
-  if (options instanceof Array) {
-    methods = options;
-    options = null;
-  }
-
-  if (!methods) {
-    methods = [];
-    for (var key in obj) {
-      if (typeof obj[key] === 'function') {
-        methods.push(key);
-      }
-    }
-  }
-
-  for (var i = 0; i < methods.length; i++) {
-    var method   = methods[i];
-    var original = obj[method];
-
-    obj[method] = function retryWrapper(original) {
-      var op       = exports.operation(options);
-      var args     = Array.prototype.slice.call(arguments, 1);
-      var callback = args.pop();
-
-      args.push(function(err) {
-        if (op.retry(err)) {
-          return;
-        }
-        if (err) {
-          arguments[0] = op.mainError();
-        }
-        callback.apply(this, arguments);
-      });
-
-      op.attempt(function() {
-        original.apply(obj, args);
-      });
-    }.bind(obj, original);
-    obj[method].options = options;
-  }
-};
-
-
-/***/ }),
-
-/***/ 604:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-const retry = __webpack_require__(321);
-
-class AbortError extends Error {
-	constructor(message) {
-		super();
-
-		if (message instanceof Error) {
-			this.originalError = message;
-			({message} = message);
-		} else {
-			this.originalError = new Error(message);
-			this.originalError.stack = this.stack;
-		}
-
-		this.name = 'AbortError';
-		this.message = message;
-	}
-}
-
-const decorateErrorWithCounts = (error, attemptNumber, options) => {
-	// Minus 1 from attemptNumber because the first attempt does not count as a retry
-	const retriesLeft = options.retries - (attemptNumber - 1);
-
-	error.attemptNumber = attemptNumber;
-	error.retriesLeft = retriesLeft;
-	return error;
-};
-
-const pRetry = (input, options) => new Promise((resolve, reject) => {
-	options = {
-		onFailedAttempt: () => {},
-		retries: 10,
-		...options
-	};
-
-	const operation = retry.operation(options);
-
-	operation.attempt(async attemptNumber => {
-		try {
-			resolve(await input(attemptNumber));
-		} catch (error) {
-			if (!(error instanceof Error)) {
-				reject(new TypeError(`Non-error was thrown: "${error}". You should only throw errors.`));
-				return;
-			}
-
-			if (error instanceof AbortError) {
-				operation.stop();
-				reject(error.originalError);
-			} else if (error instanceof TypeError) {
-				operation.stop();
-				reject(error);
-			} else {
-				decorateErrorWithCounts(error, attemptNumber, options);
-
-				try {
-					await options.onFailedAttempt(error);
-				} catch (error) {
-					reject(error);
-					return;
-				}
-
-				if (!operation.retry(error)) {
-					reject(operation.mainError());
-				}
-			}
-		}
-	});
-});
-
-module.exports = pRetry;
-// TODO: remove this in the next major version
-module.exports.default = pRetry;
-
-module.exports.AbortError = AbortError;
-
-
-/***/ }),
-
-/***/ 605:
-/***/ (function(module) {
-
-module.exports = require("http");
-
-/***/ }),
-
-/***/ 614:
-/***/ (function(module) {
-
-module.exports = require("events");
-
-/***/ }),
-
-/***/ 616:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
-    return result;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const os = __importStar(__webpack_require__(87));
-const packageJson = __webpack_require__(59); // tslint:disable-line:no-require-imports no-var-requires
-/**
- * Replaces occurrences of '/' with ':' in a string, since '/' is meaningful inside User-Agent strings as a separator.
- */
-function replaceSlashes(s) {
-    return s.replace('/', ':');
-}
-const baseUserAgent = `${replaceSlashes(packageJson.name)}/${packageJson.version} ` +
-    `node/${process.version.replace('v', '')} ` +
-    `${os.platform()}/${os.release()}`;
-const appMetadata = {};
-/**
- * Appends the app metadata into the User-Agent value
- * @param appMetadata.name name of tool to be counted in instrumentation
- * @param appMetadata.version version of tool to be counted in instrumentation
- */
-function addAppMetadata({ name, version }) {
-    appMetadata[replaceSlashes(name)] = version;
-}
-exports.addAppMetadata = addAppMetadata;
-/**
- * Returns the current User-Agent value for instrumentation
- */
-function getUserAgent() {
-    const appIdentifier = Object.entries(appMetadata).map(([name, version]) => `${name}/${version}`).join(' ');
-    // only prepend the appIdentifier when its not empty
-    return ((appIdentifier.length > 0) ? `${appIdentifier} ` : '') + baseUserAgent;
-}
-exports.getUserAgent = getUserAgent;
-//# sourceMappingURL=instrument.js.map
-
-/***/ }),
-
-/***/ 621:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-const path = __webpack_require__(622);
-const pathKey = __webpack_require__(39);
-
-module.exports = opts => {
-	opts = Object.assign({
-		cwd: process.cwd(),
-		path: process.env[pathKey()]
-	}, opts);
-
-	let prev;
-	let pth = path.resolve(opts.cwd);
-	const ret = [];
-
-	while (prev !== pth) {
-		ret.push(path.join(pth, 'node_modules/.bin'));
-		prev = pth;
-		pth = path.resolve(pth, '..');
-	}
-
-	// ensure the running `node` binary is used
-	ret.push(path.dirname(process.execPath));
-
-	return ret.concat(opts.path).join(path.delimiter);
-};
-
-module.exports.env = opts => {
-	opts = Object.assign({
-		env: process.env
-	}, opts);
-
-	const env = Object.assign({}, opts.env);
-	const path = pathKey({env});
-
-	opts.path = env[path];
-	env[path] = module.exports(opts);
-
-	return env;
-};
-
-
-/***/ }),
-
-/***/ 622:
-/***/ (function(module) {
-
-module.exports = require("path");
-
-/***/ }),
-
-/***/ 625:
-/***/ (function(__unusedmodule, exports) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-/**
- * A dictionary of codes for errors produced by this package
- */
-var ErrorCode;
-(function (ErrorCode) {
-    ErrorCode["RequestError"] = "slack_webapi_request_error";
-    ErrorCode["HTTPError"] = "slack_webapi_http_error";
-    ErrorCode["PlatformError"] = "slack_webapi_platform_error";
-    ErrorCode["RateLimitedError"] = "slack_webapi_rate_limited_error";
-})(ErrorCode = exports.ErrorCode || (exports.ErrorCode = {}));
-/**
- * Factory for producing a {@link CodedError} from a generic error
- */
-function errorWithCode(error, code) {
-    // NOTE: might be able to return something more specific than a CodedError with conditional typing
-    const codedError = error;
-    codedError.code = code;
-    return codedError;
-}
-/**
- * A factory to create WebAPIRequestError objects
- * @param original - original error
- */
-function requestErrorWithOriginal(original) {
-    const error = errorWithCode(new Error(`A request error occurred: ${original.message}`), ErrorCode.RequestError);
-    error.original = original;
-    return error;
-}
-exports.requestErrorWithOriginal = requestErrorWithOriginal;
-/**
- * A factory to create WebAPIHTTPError objects
- * @param response - original error
- */
-function httpErrorFromResponse(response) {
-    const error = errorWithCode(new Error(`An HTTP protocol error occurred: statusCode = ${response.status}`), ErrorCode.HTTPError);
-    error.statusCode = response.status;
-    error.statusMessage = response.statusText;
-    error.headers = response.headers;
-    error.body = response.data;
-    return error;
-}
-exports.httpErrorFromResponse = httpErrorFromResponse;
-/**
- * A factory to create WebAPIPlatformError objects
- * @param result - Web API call result
- */
-function platformErrorFromResult(result) {
-    const error = errorWithCode(new Error(`An API error occurred: ${result.error}`), ErrorCode.PlatformError);
-    error.data = result;
-    return error;
-}
-exports.platformErrorFromResult = platformErrorFromResult;
-/**
- * A factory to create WebAPIRateLimitedError objects
- * @param retrySec - Number of seconds that the request can be retried in
- */
-function rateLimitedErrorWithDelay(retrySec) {
-    const error = errorWithCode(new Error(`A rate-limit has been reached, you may retry this request in ${retrySec} seconds`), ErrorCode.RateLimitedError);
-    error.retryAfter = retrySec;
-    return error;
-}
-exports.rateLimitedErrorWithDelay = rateLimitedErrorWithDelay;
-//# sourceMappingURL=errors.js.map
-
-/***/ }),
-
-/***/ 626:
-/***/ (function(module) {
-
-"use strict";
-
-
-/*!
- * isobject <https://github.com/jonschlinkert/isobject>
- *
- * Copyright (c) 2014-2017, Jon Schlinkert.
- * Released under the MIT License.
- */
-
-function isObject(val) {
-  return val != null && typeof val === 'object' && Array.isArray(val) === false;
-}
-
-/*!
- * is-plain-object <https://github.com/jonschlinkert/is-plain-object>
- *
- * Copyright (c) 2014-2017, Jon Schlinkert.
- * Released under the MIT License.
- */
-
-function isObjectObject(o) {
-  return isObject(o) === true
-    && Object.prototype.toString.call(o) === '[object Object]';
-}
-
-function isPlainObject(o) {
-  var ctor,prot;
-
-  if (isObjectObject(o) === false) return false;
-
-  // If has modified constructor
-  ctor = o.constructor;
-  if (typeof ctor !== 'function') return false;
-
-  // If has modified prototype
-  prot = ctor.prototype;
-  if (isObjectObject(prot) === false) return false;
-
-  // If constructor does not have an Object-specific method
-  if (prot.hasOwnProperty('isPrototypeOf') === false) {
-    return false;
-  }
-
-  // Most likely a plain Object
-  return true;
-}
-
-module.exports = isPlainObject;
-
-
-/***/ }),
-
-/***/ 631:
-/***/ (function(module) {
-
-module.exports = require("net");
-
-/***/ }),
-
-/***/ 649:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = getLastPage
-
-const getPage = __webpack_require__(265)
-
-function getLastPage (octokit, link, headers) {
-  return getPage(octokit, link, 'last', headers)
-}
-
-
-/***/ }),
-
-/***/ 654:
-/***/ (function(module) {
-
-// This is not the set of all possible signals.
-//
-// It IS, however, the set of all signals that trigger
-// an exit on either Linux or BSD systems.  Linux is a
-// superset of the signal names supported on BSD, and
-// the unknown signals just fail to register, so we can
-// catch that easily enough.
-//
-// Don't bother with SIGKILL.  It's uncatchable, which
-// means that we can't fire any callbacks anyway.
-//
-// If a user does happen to register a handler on a non-
-// fatal signal like SIGWINCH or something, and then
-// exit, it'll end up firing `process.emit('exit')`, so
-// the handler will be fired anyway.
-//
-// SIGBUS, SIGFPE, SIGSEGV and SIGILL, when not raised
-// artificially, inherently leave the process in a
-// state from which it is not safe to try and enter JS
-// listeners.
-module.exports = [
-  'SIGABRT',
-  'SIGALRM',
-  'SIGHUP',
-  'SIGINT',
-  'SIGTERM'
-]
-
-if (process.platform !== 'win32') {
-  module.exports.push(
-    'SIGVTALRM',
-    'SIGXCPU',
-    'SIGXFSZ',
-    'SIGUSR2',
-    'SIGTRAP',
-    'SIGSYS',
-    'SIGQUIT',
-    'SIGIOT'
-    // should detect profiler and enable/disable accordingly.
-    // see #21
-    // 'SIGPROF'
-  )
-}
-
-if (process.platform === 'linux') {
-  module.exports.push(
-    'SIGIO',
-    'SIGPOLL',
-    'SIGPWR',
-    'SIGSTKFLT',
-    'SIGUNUSED'
-  )
-}
-
-
-/***/ }),
-
-/***/ 669:
-/***/ (function(module) {
-
-module.exports = require("util");
-
-/***/ }),
-
-/***/ 670:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-
-var utils = __webpack_require__(35);
-var settle = __webpack_require__(564);
-var buildFullPath = __webpack_require__(960);
-var buildURL = __webpack_require__(133);
-var http = __webpack_require__(605);
-var https = __webpack_require__(34);
-var httpFollow = __webpack_require__(549).http;
-var httpsFollow = __webpack_require__(549).https;
-var url = __webpack_require__(835);
-var zlib = __webpack_require__(761);
-var pkg = __webpack_require__(361);
-var createError = __webpack_require__(26);
-var enhanceError = __webpack_require__(369);
-
-var isHttps = /https:?/;
-
-/*eslint consistent-return:0*/
-module.exports = function httpAdapter(config) {
-  return new Promise(function dispatchHttpRequest(resolvePromise, rejectPromise) {
-    var resolve = function resolve(value) {
-      resolvePromise(value);
-    };
-    var reject = function reject(value) {
-      rejectPromise(value);
-    };
-    var data = config.data;
-    var headers = config.headers;
-
-    // Set User-Agent (required by some servers)
-    // Only set header if it hasn't been set in config
-    // See https://github.com/axios/axios/issues/69
-    if (!headers['User-Agent'] && !headers['user-agent']) {
-      headers['User-Agent'] = 'axios/' + pkg.version;
-    }
-
-    if (data && !utils.isStream(data)) {
-      if (Buffer.isBuffer(data)) {
-        // Nothing to do...
-      } else if (utils.isArrayBuffer(data)) {
-        data = Buffer.from(new Uint8Array(data));
-      } else if (utils.isString(data)) {
-        data = Buffer.from(data, 'utf-8');
-      } else {
-        return reject(createError(
-          'Data after transformation must be a string, an ArrayBuffer, a Buffer, or a Stream',
-          config
-        ));
-      }
-
-      // Add Content-Length header if data exists
-      headers['Content-Length'] = data.length;
-    }
-
-    // HTTP basic authentication
-    var auth = undefined;
-    if (config.auth) {
-      var username = config.auth.username || '';
-      var password = config.auth.password || '';
-      auth = username + ':' + password;
-    }
-
-    // Parse url
-    var fullPath = buildFullPath(config.baseURL, config.url);
-    var parsed = url.parse(fullPath);
-    var protocol = parsed.protocol || 'http:';
-
-    if (!auth && parsed.auth) {
-      var urlAuth = parsed.auth.split(':');
-      var urlUsername = urlAuth[0] || '';
-      var urlPassword = urlAuth[1] || '';
-      auth = urlUsername + ':' + urlPassword;
-    }
-
-    if (auth) {
-      delete headers.Authorization;
-    }
-
-    var isHttpsRequest = isHttps.test(protocol);
-    var agent = isHttpsRequest ? config.httpsAgent : config.httpAgent;
-
-    var options = {
-      path: buildURL(parsed.path, config.params, config.paramsSerializer).replace(/^\?/, ''),
-      method: config.method.toUpperCase(),
-      headers: headers,
-      agent: agent,
-      agents: { http: config.httpAgent, https: config.httpsAgent },
-      auth: auth
-    };
-
-    if (config.socketPath) {
-      options.socketPath = config.socketPath;
-    } else {
-      options.hostname = parsed.hostname;
-      options.port = parsed.port;
-    }
-
-    var proxy = config.proxy;
-    if (!proxy && proxy !== false) {
-      var proxyEnv = protocol.slice(0, -1) + '_proxy';
-      var proxyUrl = process.env[proxyEnv] || process.env[proxyEnv.toUpperCase()];
-      if (proxyUrl) {
-        var parsedProxyUrl = url.parse(proxyUrl);
-        var noProxyEnv = process.env.no_proxy || process.env.NO_PROXY;
-        var shouldProxy = true;
-
-        if (noProxyEnv) {
-          var noProxy = noProxyEnv.split(',').map(function trim(s) {
-            return s.trim();
-          });
-
-          shouldProxy = !noProxy.some(function proxyMatch(proxyElement) {
-            if (!proxyElement) {
-              return false;
-            }
-            if (proxyElement === '*') {
-              return true;
-            }
-            if (proxyElement[0] === '.' &&
-                parsed.hostname.substr(parsed.hostname.length - proxyElement.length) === proxyElement) {
-              return true;
-            }
-
-            return parsed.hostname === proxyElement;
-          });
-        }
-
-
-        if (shouldProxy) {
-          proxy = {
-            host: parsedProxyUrl.hostname,
-            port: parsedProxyUrl.port
-          };
-
-          if (parsedProxyUrl.auth) {
-            var proxyUrlAuth = parsedProxyUrl.auth.split(':');
-            proxy.auth = {
-              username: proxyUrlAuth[0],
-              password: proxyUrlAuth[1]
-            };
-          }
-        }
-      }
-    }
-
-    if (proxy) {
-      options.hostname = proxy.host;
-      options.host = proxy.host;
-      options.headers.host = parsed.hostname + (parsed.port ? ':' + parsed.port : '');
-      options.port = proxy.port;
-      options.path = protocol + '//' + parsed.hostname + (parsed.port ? ':' + parsed.port : '') + options.path;
-
-      // Basic proxy authorization
-      if (proxy.auth) {
-        var base64 = Buffer.from(proxy.auth.username + ':' + proxy.auth.password, 'utf8').toString('base64');
-        options.headers['Proxy-Authorization'] = 'Basic ' + base64;
-      }
-    }
-
-    var transport;
-    var isHttpsProxy = isHttpsRequest && (proxy ? isHttps.test(proxy.protocol) : true);
-    if (config.transport) {
-      transport = config.transport;
-    } else if (config.maxRedirects === 0) {
-      transport = isHttpsProxy ? https : http;
-    } else {
-      if (config.maxRedirects) {
-        options.maxRedirects = config.maxRedirects;
-      }
-      transport = isHttpsProxy ? httpsFollow : httpFollow;
-    }
-
-    if (config.maxContentLength && config.maxContentLength > -1) {
-      options.maxBodyLength = config.maxContentLength;
-    }
-
-    // Create the request
-    var req = transport.request(options, function handleResponse(res) {
-      if (req.aborted) return;
-
-      // uncompress the response body transparently if required
-      var stream = res;
-      switch (res.headers['content-encoding']) {
-      /*eslint default-case:0*/
-      case 'gzip':
-      case 'compress':
-      case 'deflate':
-        // add the unzipper to the body stream processing pipeline
-        stream = (res.statusCode === 204) ? stream : stream.pipe(zlib.createUnzip());
-
-        // remove the content-encoding in order to not confuse downstream operations
-        delete res.headers['content-encoding'];
-        break;
-      }
-
-      // return the last request in case of redirects
-      var lastRequest = res.req || req;
-
-      var response = {
-        status: res.statusCode,
-        statusText: res.statusMessage,
-        headers: res.headers,
-        config: config,
-        request: lastRequest
-      };
-
-      if (config.responseType === 'stream') {
-        response.data = stream;
-        settle(resolve, reject, response);
-      } else {
-        var responseBuffer = [];
-        stream.on('data', function handleStreamData(chunk) {
-          responseBuffer.push(chunk);
-
-          // make sure the content length is not over the maxContentLength if specified
-          if (config.maxContentLength > -1 && Buffer.concat(responseBuffer).length > config.maxContentLength) {
-            stream.destroy();
-            reject(createError('maxContentLength size of ' + config.maxContentLength + ' exceeded',
-              config, null, lastRequest));
-          }
-        });
-
-        stream.on('error', function handleStreamError(err) {
-          if (req.aborted) return;
-          reject(enhanceError(err, config, null, lastRequest));
-        });
-
-        stream.on('end', function handleStreamEnd() {
-          var responseData = Buffer.concat(responseBuffer);
-          if (config.responseType !== 'arraybuffer') {
-            responseData = responseData.toString(config.responseEncoding);
-          }
-
-          response.data = responseData;
-          settle(resolve, reject, response);
-        });
-      }
-    });
-
-    // Handle errors
-    req.on('error', function handleRequestError(err) {
-      if (req.aborted) return;
-      reject(enhanceError(err, config, null, req));
-    });
-
-    // Handle request timeout
-    if (config.timeout) {
-      // Sometime, the response will be very slow, and does not respond, the connect event will be block by event loop system.
-      // And timer callback will be fired, and abort() will be invoked before connection, then get "socket hang up" and code ECONNRESET.
-      // At this time, if we have a large number of request, nodejs will hang up some socket on background. and the number will up and up.
-      // And then these socket which be hang up will devoring CPU little by little.
-      // ClientRequest.setTimeout will be fired on the specify milliseconds, and can make sure that abort() will be fired after connect.
-      req.setTimeout(config.timeout, function handleRequestTimeout() {
-        req.abort();
-        reject(createError('timeout of ' + config.timeout + 'ms exceeded', config, 'ECONNABORTED', req));
-      });
-    }
-
-    if (config.cancelToken) {
-      // Handle cancellation
-      config.cancelToken.promise.then(function onCanceled(cancel) {
-        if (req.aborted) return;
-
-        req.abort();
-        reject(cancel);
-      });
-    }
-
-    // Send the request
-    if (utils.isStream(data)) {
-      data.on('error', function handleStreamError(err) {
-        reject(enhanceError(err, config, null, req));
-      }).pipe(req);
-    } else {
-      req.end(data);
-    }
-  });
-};
-
-
-/***/ }),
-
-/***/ 674:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = authenticate;
-
-const { Deprecation } = __webpack_require__(692);
-const once = __webpack_require__(969);
-
-const deprecateAuthenticate = once((log, deprecation) => log.warn(deprecation));
-
-function authenticate(state, options) {
-  deprecateAuthenticate(
-    state.octokit.log,
-    new Deprecation(
-      '[@octokit/rest] octokit.authenticate() is deprecated. Use "auth" constructor option instead.'
-    )
-  );
-
-  if (!options) {
-    state.auth = false;
-    return;
-  }
-
-  switch (options.type) {
-    case "basic":
-      if (!options.username || !options.password) {
-        throw new Error(
-          "Basic authentication requires both a username and password to be set"
-        );
-      }
-      break;
-
-    case "oauth":
-      if (!options.token && !(options.key && options.secret)) {
-        throw new Error(
-          "OAuth2 authentication requires a token or key & secret to be set"
-        );
-      }
-      break;
-
-    case "token":
-    case "app":
-      if (!options.token) {
-        throw new Error("Token authentication requires a token to be set");
-      }
-      break;
-
-    default:
-      throw new Error(
-        "Invalid authentication type, must be 'basic', 'oauth', 'token' or 'app'"
-      );
-  }
-
-  state.auth = options;
-}
-
-
-/***/ }),
-
-/***/ 675:
-/***/ (function(module) {
-
-module.exports = function btoa(str) {
-  return new Buffer(str).toString('base64')
-}
-
-
-/***/ }),
-
-/***/ 688:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-
-var utils = __webpack_require__(35);
-
-module.exports = (
-  utils.isStandardBrowserEnv() ?
-
-  // Standard browser envs have full support of the APIs needed to test
-  // whether the request URL is of the same origin as current location.
-    (function standardBrowserEnv() {
-      var msie = /(msie|trident)/i.test(navigator.userAgent);
-      var urlParsingNode = document.createElement('a');
-      var originURL;
-
-      /**
-    * Parse a URL to discover it's components
-    *
-    * @param {String} url The URL to be parsed
-    * @returns {Object}
-    */
-      function resolveURL(url) {
-        var href = url;
-
-        if (msie) {
-        // IE needs attribute set twice to normalize properties
-          urlParsingNode.setAttribute('href', href);
-          href = urlParsingNode.href;
-        }
-
-        urlParsingNode.setAttribute('href', href);
-
-        // urlParsingNode provides the UrlUtils interface - http://url.spec.whatwg.org/#urlutils
-        return {
-          href: urlParsingNode.href,
-          protocol: urlParsingNode.protocol ? urlParsingNode.protocol.replace(/:$/, '') : '',
-          host: urlParsingNode.host,
-          search: urlParsingNode.search ? urlParsingNode.search.replace(/^\?/, '') : '',
-          hash: urlParsingNode.hash ? urlParsingNode.hash.replace(/^#/, '') : '',
-          hostname: urlParsingNode.hostname,
-          port: urlParsingNode.port,
-          pathname: (urlParsingNode.pathname.charAt(0) === '/') ?
-            urlParsingNode.pathname :
-            '/' + urlParsingNode.pathname
-        };
-      }
-
-      originURL = resolveURL(window.location.href);
-
-      /**
-    * Determine if a URL shares the same origin as the current location
-    *
-    * @param {String} requestURL The URL to test
-    * @returns {boolean} True if URL shares the same origin, otherwise false
-    */
-      return function isURLSameOrigin(requestURL) {
-        var parsed = (utils.isString(requestURL)) ? resolveURL(requestURL) : requestURL;
-        return (parsed.protocol === originURL.protocol &&
-            parsed.host === originURL.host);
-      };
-    })() :
-
-  // Non standard browser envs (web workers, react-native) lack needed support.
-    (function nonStandardBrowserEnv() {
-      return function isURLSameOrigin() {
-        return true;
-      };
-    })()
-);
-
-
-/***/ }),
-
-/***/ 692:
-/***/ (function(__unusedmodule, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-class Deprecation extends Error {
-  constructor(message) {
-    super(message); // Maintains proper stack trace (only available on V8)
-
-    /* istanbul ignore next */
-
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, this.constructor);
-    }
-
-    this.name = 'Deprecation';
-  }
-
-}
-
-exports.Deprecation = Deprecation;
-
-
-/***/ }),
-
-/***/ 697:
-/***/ (function(module) {
-
-"use strict";
-
-module.exports = (promise, onFinally) => {
-	onFinally = onFinally || (() => {});
-
-	return promise.then(
-		val => new Promise(resolve => {
-			resolve(onFinally());
-		}).then(() => val),
-		err => new Promise(resolve => {
-			resolve(onFinally());
-		}).then(() => {
-			throw err;
-		})
-	);
-};
-
-
-/***/ }),
-
-/***/ 701:
-/***/ (function(__unusedmodule, exports) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-// A set of method names is initialized here and added to each time an argument type extends the CursorPaginationEnabled
-// interface, so that methods are checked against this set when using the pagination helper. If the method name is not
-// found, a warning is emitted to guide the developer to using the method correctly.
-exports.cursorPaginationEnabledMethods = new Set();
-exports.cursorPaginationEnabledMethods.add('admin.apps.approved.list');
-exports.cursorPaginationEnabledMethods.add('admin.apps.requests.list');
-exports.cursorPaginationEnabledMethods.add('admin.apps.restricted.list');
-exports.cursorPaginationEnabledMethods.add('admin.inviteRequests.approved.list');
-exports.cursorPaginationEnabledMethods.add('admin.inviteRequests.denied.list');
-exports.cursorPaginationEnabledMethods.add('admin.inviteRequests.list');
-exports.cursorPaginationEnabledMethods.add('admin.teams.admins.list');
-exports.cursorPaginationEnabledMethods.add('admin.teams.list');
-exports.cursorPaginationEnabledMethods.add('admin.teams.owners.list');
-exports.cursorPaginationEnabledMethods.add('admin.users.list');
-exports.cursorPaginationEnabledMethods.add('channels.list');
-exports.cursorPaginationEnabledMethods.add('chat.scheduledMessages.list');
-exports.cursorPaginationEnabledMethods.add('conversations.history');
-exports.cursorPaginationEnabledMethods.add('conversations.list');
-exports.cursorPaginationEnabledMethods.add('conversations.members');
-exports.cursorPaginationEnabledMethods.add('conversations.replies');
-exports.cursorPaginationEnabledMethods.add('files.info');
-exports.cursorPaginationEnabledMethods.add('files.remote.list');
-exports.cursorPaginationEnabledMethods.add('groups.list');
-exports.cursorPaginationEnabledMethods.add('im.list');
-exports.cursorPaginationEnabledMethods.add('mpim.list');
-exports.cursorPaginationEnabledMethods.add('reactions.list');
-exports.cursorPaginationEnabledMethods.add('stars.list');
-exports.cursorPaginationEnabledMethods.add('users.conversations');
-exports.cursorPaginationEnabledMethods.add('users.list');
-//# sourceMappingURL=methods.js.map
-
-/***/ }),
-
-/***/ 726:
-/***/ (function(module) {
-
-"use strict";
-
-
-var has = Object.prototype.hasOwnProperty
-  , prefix = '~';
-
-/**
- * Constructor to create a storage for our `EE` objects.
- * An `Events` instance is a plain object whose properties are event names.
- *
- * @constructor
- * @private
- */
-function Events() {}
-
-//
-// We try to not inherit from `Object.prototype`. In some engines creating an
-// instance in this way is faster than calling `Object.create(null)` directly.
-// If `Object.create(null)` is not supported we prefix the event names with a
-// character to make sure that the built-in object properties are not
-// overridden or used as an attack vector.
-//
-if (Object.create) {
-  Events.prototype = Object.create(null);
-
-  //
-  // This hack is needed because the `__proto__` property is still inherited in
-  // some old browsers like Android 4, iPhone 5.1, Opera 11 and Safari 5.
-  //
-  if (!new Events().__proto__) prefix = false;
-}
-
-/**
- * Representation of a single event listener.
- *
- * @param {Function} fn The listener function.
- * @param {*} context The context to invoke the listener with.
- * @param {Boolean} [once=false] Specify if the listener is a one-time listener.
- * @constructor
- * @private
- */
-function EE(fn, context, once) {
-  this.fn = fn;
-  this.context = context;
-  this.once = once || false;
-}
-
-/**
- * Add a listener for a given event.
- *
- * @param {EventEmitter} emitter Reference to the `EventEmitter` instance.
- * @param {(String|Symbol)} event The event name.
- * @param {Function} fn The listener function.
- * @param {*} context The context to invoke the listener with.
- * @param {Boolean} once Specify if the listener is a one-time listener.
- * @returns {EventEmitter}
- * @private
- */
-function addListener(emitter, event, fn, context, once) {
-  if (typeof fn !== 'function') {
-    throw new TypeError('The listener must be a function');
-  }
-
-  var listener = new EE(fn, context || emitter, once)
-    , evt = prefix ? prefix + event : event;
-
-  if (!emitter._events[evt]) emitter._events[evt] = listener, emitter._eventsCount++;
-  else if (!emitter._events[evt].fn) emitter._events[evt].push(listener);
-  else emitter._events[evt] = [emitter._events[evt], listener];
-
-  return emitter;
-}
-
-/**
- * Clear event by name.
- *
- * @param {EventEmitter} emitter Reference to the `EventEmitter` instance.
- * @param {(String|Symbol)} evt The Event name.
- * @private
- */
-function clearEvent(emitter, evt) {
-  if (--emitter._eventsCount === 0) emitter._events = new Events();
-  else delete emitter._events[evt];
-}
-
-/**
- * Minimal `EventEmitter` interface that is molded against the Node.js
- * `EventEmitter` interface.
- *
- * @constructor
- * @public
- */
-function EventEmitter() {
-  this._events = new Events();
-  this._eventsCount = 0;
-}
-
-/**
- * Return an array listing the events for which the emitter has registered
- * listeners.
- *
- * @returns {Array}
- * @public
- */
-EventEmitter.prototype.eventNames = function eventNames() {
-  var names = []
-    , events
-    , name;
-
-  if (this._eventsCount === 0) return names;
-
-  for (name in (events = this._events)) {
-    if (has.call(events, name)) names.push(prefix ? name.slice(1) : name);
-  }
-
-  if (Object.getOwnPropertySymbols) {
-    return names.concat(Object.getOwnPropertySymbols(events));
-  }
-
-  return names;
-};
-
-/**
- * Return the listeners registered for a given event.
- *
- * @param {(String|Symbol)} event The event name.
- * @returns {Array} The registered listeners.
- * @public
- */
-EventEmitter.prototype.listeners = function listeners(event) {
-  var evt = prefix ? prefix + event : event
-    , handlers = this._events[evt];
-
-  if (!handlers) return [];
-  if (handlers.fn) return [handlers.fn];
-
-  for (var i = 0, l = handlers.length, ee = new Array(l); i < l; i++) {
-    ee[i] = handlers[i].fn;
-  }
-
-  return ee;
-};
-
-/**
- * Return the number of listeners listening to a given event.
- *
- * @param {(String|Symbol)} event The event name.
- * @returns {Number} The number of listeners.
- * @public
- */
-EventEmitter.prototype.listenerCount = function listenerCount(event) {
-  var evt = prefix ? prefix + event : event
-    , listeners = this._events[evt];
-
-  if (!listeners) return 0;
-  if (listeners.fn) return 1;
-  return listeners.length;
-};
-
-/**
- * Calls each of the listeners registered for a given event.
- *
- * @param {(String|Symbol)} event The event name.
- * @returns {Boolean} `true` if the event had listeners, else `false`.
- * @public
- */
-EventEmitter.prototype.emit = function emit(event, a1, a2, a3, a4, a5) {
-  var evt = prefix ? prefix + event : event;
-
-  if (!this._events[evt]) return false;
-
-  var listeners = this._events[evt]
-    , len = arguments.length
-    , args
-    , i;
-
-  if (listeners.fn) {
-    if (listeners.once) this.removeListener(event, listeners.fn, undefined, true);
-
-    switch (len) {
-      case 1: return listeners.fn.call(listeners.context), true;
-      case 2: return listeners.fn.call(listeners.context, a1), true;
-      case 3: return listeners.fn.call(listeners.context, a1, a2), true;
-      case 4: return listeners.fn.call(listeners.context, a1, a2, a3), true;
-      case 5: return listeners.fn.call(listeners.context, a1, a2, a3, a4), true;
-      case 6: return listeners.fn.call(listeners.context, a1, a2, a3, a4, a5), true;
-    }
-
-    for (i = 1, args = new Array(len -1); i < len; i++) {
-      args[i - 1] = arguments[i];
-    }
-
-    listeners.fn.apply(listeners.context, args);
-  } else {
-    var length = listeners.length
-      , j;
-
-    for (i = 0; i < length; i++) {
-      if (listeners[i].once) this.removeListener(event, listeners[i].fn, undefined, true);
-
-      switch (len) {
-        case 1: listeners[i].fn.call(listeners[i].context); break;
-        case 2: listeners[i].fn.call(listeners[i].context, a1); break;
-        case 3: listeners[i].fn.call(listeners[i].context, a1, a2); break;
-        case 4: listeners[i].fn.call(listeners[i].context, a1, a2, a3); break;
-        default:
-          if (!args) for (j = 1, args = new Array(len -1); j < len; j++) {
-            args[j - 1] = arguments[j];
-          }
-
-          listeners[i].fn.apply(listeners[i].context, args);
-      }
-    }
-  }
-
-  return true;
-};
-
-/**
- * Add a listener for a given event.
- *
- * @param {(String|Symbol)} event The event name.
- * @param {Function} fn The listener function.
- * @param {*} [context=this] The context to invoke the listener with.
- * @returns {EventEmitter} `this`.
- * @public
- */
-EventEmitter.prototype.on = function on(event, fn, context) {
-  return addListener(this, event, fn, context, false);
-};
-
-/**
- * Add a one-time listener for a given event.
- *
- * @param {(String|Symbol)} event The event name.
- * @param {Function} fn The listener function.
- * @param {*} [context=this] The context to invoke the listener with.
- * @returns {EventEmitter} `this`.
- * @public
- */
-EventEmitter.prototype.once = function once(event, fn, context) {
-  return addListener(this, event, fn, context, true);
-};
-
-/**
- * Remove the listeners of a given event.
- *
- * @param {(String|Symbol)} event The event name.
- * @param {Function} fn Only remove the listeners that match this function.
- * @param {*} context Only remove the listeners that have this context.
- * @param {Boolean} once Only remove one-time listeners.
- * @returns {EventEmitter} `this`.
- * @public
- */
-EventEmitter.prototype.removeListener = function removeListener(event, fn, context, once) {
-  var evt = prefix ? prefix + event : event;
-
-  if (!this._events[evt]) return this;
-  if (!fn) {
-    clearEvent(this, evt);
-    return this;
-  }
-
-  var listeners = this._events[evt];
-
-  if (listeners.fn) {
-    if (
-      listeners.fn === fn &&
-      (!once || listeners.once) &&
-      (!context || listeners.context === context)
-    ) {
-      clearEvent(this, evt);
-    }
-  } else {
-    for (var i = 0, events = [], length = listeners.length; i < length; i++) {
-      if (
-        listeners[i].fn !== fn ||
-        (once && !listeners[i].once) ||
-        (context && listeners[i].context !== context)
-      ) {
-        events.push(listeners[i]);
-      }
-    }
-
-    //
-    // Reset the array, or remove it completely if we have no more listeners.
-    //
-    if (events.length) this._events[evt] = events.length === 1 ? events[0] : events;
-    else clearEvent(this, evt);
-  }
-
-  return this;
-};
-
-/**
- * Remove all listeners, or those of the specified event.
- *
- * @param {(String|Symbol)} [event] The event name.
- * @returns {EventEmitter} `this`.
- * @public
- */
-EventEmitter.prototype.removeAllListeners = function removeAllListeners(event) {
-  var evt;
-
-  if (event) {
-    evt = prefix ? prefix + event : event;
-    if (this._events[evt]) clearEvent(this, evt);
-  } else {
-    this._events = new Events();
-    this._eventsCount = 0;
-  }
-
-  return this;
-};
-
-//
-// Alias methods names because people roll like that.
-//
-EventEmitter.prototype.off = EventEmitter.prototype.removeListener;
-EventEmitter.prototype.addListener = EventEmitter.prototype.on;
-
-//
-// Expose the prefix.
-//
-EventEmitter.prefixed = prefix;
-
-//
-// Allow `EventEmitter` to be imported as module namespace.
-//
-EventEmitter.EventEmitter = EventEmitter;
-
-//
-// Expose the module.
-//
-if (true) {
-  module.exports = EventEmitter;
-}
-
-
-/***/ }),
-
-/***/ 727:
-/***/ (function(module) {
-
-"use strict";
-
-
-module.exports = function bind(fn, thisArg) {
-  return function wrap() {
-    var args = new Array(arguments.length);
-    for (var i = 0; i < args.length; i++) {
-      args[i] = arguments[i];
-    }
-    return fn.apply(thisArg, args);
-  };
-};
-
-
-/***/ }),
-
-/***/ 728:
-/***/ (function(__unusedmodule, exports) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-/**
- * Severity levels for log entries
- */
-var LogLevel;
-(function (LogLevel) {
-    LogLevel["ERROR"] = "error";
-    LogLevel["WARN"] = "warn";
-    LogLevel["INFO"] = "info";
-    LogLevel["DEBUG"] = "debug";
-})(LogLevel = exports.LogLevel || (exports.LogLevel = {}));
-/**
- * Default logger which logs to stdout and stderr
- */
-class ConsoleLogger {
-    constructor() {
-        this.level = LogLevel.INFO;
-        this.name = '';
-    }
-    getLevel() {
-        return this.level;
-    }
-    /**
-     * Sets the instance's log level so that only messages which are equal or more severe are output to the console.
-     */
-    setLevel(level) {
-        this.level = level;
-    }
-    /**
-     * Set the instance's name, which will appear on each log line before the message.
-     */
-    setName(name) {
-        this.name = name;
-    }
-    /**
-     * Log a debug message
-     */
-    debug(...msg) {
-        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.DEBUG, this.level)) {
-            console.debug(ConsoleLogger.labels.get(LogLevel.DEBUG), this.name, ...msg);
-        }
-    }
-    /**
-     * Log an info message
-     */
-    info(...msg) {
-        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.INFO, this.level)) {
-            console.info(ConsoleLogger.labels.get(LogLevel.INFO), this.name, ...msg);
-        }
-    }
-    /**
-     * Log a warning message
-     */
-    warn(...msg) {
-        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.WARN, this.level)) {
-            console.warn(ConsoleLogger.labels.get(LogLevel.WARN), this.name, ...msg);
-        }
-    }
-    /**
-     * Log an error message
-     */
-    error(...msg) {
-        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.ERROR, this.level)) {
-            console.error(ConsoleLogger.labels.get(LogLevel.ERROR), this.name, ...msg);
-        }
-    }
-    /**
-     * Helper to compare two log levels and determine if a is equal or more severe than b
-     */
-    static isMoreOrEqualSevere(a, b) {
-        return ConsoleLogger.severity[a] >= ConsoleLogger.severity[b];
-    }
-}
-/** Map of labels for each log level */
-ConsoleLogger.labels = (() => {
-    const entries = Object.entries(LogLevel);
-    const map = entries.map(([key, value]) => {
-        return [value, `[${key}] `];
-    });
-    return new Map(map);
-})();
-/** Map of severity as comparable numbers for each log level */
-ConsoleLogger.severity = {
-    [LogLevel.ERROR]: 400,
-    [LogLevel.WARN]: 300,
-    [LogLevel.INFO]: 200,
-    [LogLevel.DEBUG]: 100,
-};
-exports.ConsoleLogger = ConsoleLogger;
-//# sourceMappingURL=index.js.map
-
-/***/ }),
-
-/***/ 732:
-/***/ (function(module) {
-
-"use strict";
-
-
-module.exports = function isCancel(value) {
-  return !!(value && value.__CANCEL__);
-};
-
-
-/***/ }),
-
-/***/ 738:
-/***/ (function(module, exports, __webpack_require__) {
-
-/**
- * Module dependencies.
- */
-
-var tty = __webpack_require__(867);
-var util = __webpack_require__(669);
-
-/**
- * This is the Node.js implementation of `debug()`.
- *
- * Expose `debug()` as the module.
- */
-
-exports = module.exports = __webpack_require__(138);
-exports.init = init;
-exports.log = log;
-exports.formatArgs = formatArgs;
-exports.save = save;
-exports.load = load;
-exports.useColors = useColors;
-
-/**
- * Colors.
- */
-
-exports.colors = [ 6, 2, 3, 4, 5, 1 ];
-
-try {
-  var supportsColor = __webpack_require__(247);
-  if (supportsColor && supportsColor.level >= 2) {
-    exports.colors = [
-      20, 21, 26, 27, 32, 33, 38, 39, 40, 41, 42, 43, 44, 45, 56, 57, 62, 63, 68,
-      69, 74, 75, 76, 77, 78, 79, 80, 81, 92, 93, 98, 99, 112, 113, 128, 129, 134,
-      135, 148, 149, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171,
-      172, 173, 178, 179, 184, 185, 196, 197, 198, 199, 200, 201, 202, 203, 204,
-      205, 206, 207, 208, 209, 214, 215, 220, 221
-    ];
-  }
-} catch (err) {
-  // swallow - we only care if `supports-color` is available; it doesn't have to be.
-}
-
-/**
- * Build up the default `inspectOpts` object from the environment variables.
- *
- *   $ DEBUG_COLORS=no DEBUG_DEPTH=10 DEBUG_SHOW_HIDDEN=enabled node script.js
- */
-
-exports.inspectOpts = Object.keys(process.env).filter(function (key) {
-  return /^debug_/i.test(key);
-}).reduce(function (obj, key) {
-  // camel-case
-  var prop = key
-    .substring(6)
-    .toLowerCase()
-    .replace(/_([a-z])/g, function (_, k) { return k.toUpperCase() });
-
-  // coerce string value into JS value
-  var val = process.env[key];
-  if (/^(yes|on|true|enabled)$/i.test(val)) val = true;
-  else if (/^(no|off|false|disabled)$/i.test(val)) val = false;
-  else if (val === 'null') val = null;
-  else val = Number(val);
-
-  obj[prop] = val;
-  return obj;
-}, {});
-
-/**
- * Is stdout a TTY? Colored output is enabled when `true`.
- */
-
-function useColors() {
-  return 'colors' in exports.inspectOpts
-    ? Boolean(exports.inspectOpts.colors)
-    : tty.isatty(process.stderr.fd);
-}
-
-/**
- * Map %o to `util.inspect()`, all on a single line.
- */
-
-exports.formatters.o = function(v) {
-  this.inspectOpts.colors = this.useColors;
-  return util.inspect(v, this.inspectOpts)
-    .split('\n').map(function(str) {
-      return str.trim()
-    }).join(' ');
-};
-
-/**
- * Map %o to `util.inspect()`, allowing multiple lines if needed.
- */
-
-exports.formatters.O = function(v) {
-  this.inspectOpts.colors = this.useColors;
-  return util.inspect(v, this.inspectOpts);
-};
-
-/**
- * Adds ANSI color escape codes if enabled.
- *
- * @api public
- */
-
-function formatArgs(args) {
-  var name = this.namespace;
-  var useColors = this.useColors;
-
-  if (useColors) {
-    var c = this.color;
-    var colorCode = '\u001b[3' + (c < 8 ? c : '8;5;' + c);
-    var prefix = '  ' + colorCode + ';1m' + name + ' ' + '\u001b[0m';
-
-    args[0] = prefix + args[0].split('\n').join('\n' + prefix);
-    args.push(colorCode + 'm+' + exports.humanize(this.diff) + '\u001b[0m');
-  } else {
-    args[0] = getDate() + name + ' ' + args[0];
-  }
-}
-
-function getDate() {
-  if (exports.inspectOpts.hideDate) {
-    return '';
-  } else {
-    return new Date().toISOString() + ' ';
-  }
-}
-
-/**
- * Invokes `util.format()` with the specified arguments and writes to stderr.
- */
-
-function log() {
-  return process.stderr.write(util.format.apply(util, arguments) + '\n');
-}
-
-/**
- * Save `namespaces`.
- *
- * @param {String} namespaces
- * @api private
- */
-
-function save(namespaces) {
-  if (null == namespaces) {
-    // If you set a process.env field to null or undefined, it gets cast to the
-    // string 'null' or 'undefined'. Just delete instead.
-    delete process.env.DEBUG;
-  } else {
-    process.env.DEBUG = namespaces;
-  }
-}
-
-/**
- * Load `namespaces`.
- *
- * @return {String} returns the previously persisted debug modes
- * @api private
- */
-
-function load() {
-  return process.env.DEBUG;
-}
-
-/**
- * Init logic for `debug` instances.
- *
- * Create a new `inspectOpts` object in case `useColors` is set
- * differently for a particular `debug` instance.
- */
-
-function init (debug) {
-  debug.inspectOpts = {};
-
-  var keys = Object.keys(exports.inspectOpts);
-  for (var i = 0; i < keys.length; i++) {
-    debug.inspectOpts[keys[i]] = exports.inspectOpts[keys[i]];
-  }
-}
-
-/**
- * Enable namespaces listed in `process.env.DEBUG` initially.
- */
-
-exports.enable(load());
-
-
-/***/ }),
-
-/***/ 742:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-var fs = __webpack_require__(747)
-var core
-if (process.platform === 'win32' || global.TESTING_WINDOWS) {
-  core = __webpack_require__(818)
-} else {
-  core = __webpack_require__(197)
-}
-
-module.exports = isexe
-isexe.sync = sync
-
-function isexe (path, options, cb) {
-  if (typeof options === 'function') {
-    cb = options
-    options = {}
-  }
-
-  if (!cb) {
-    if (typeof Promise !== 'function') {
-      throw new TypeError('callback not provided')
-    }
-
-    return new Promise(function (resolve, reject) {
-      isexe(path, options || {}, function (er, is) {
-        if (er) {
-          reject(er)
-        } else {
-          resolve(is)
-        }
-      })
-    })
-  }
-
-  core(path, options || {}, function (er, is) {
-    // ignore EACCES because that just means we aren't allowed to run it
-    if (er) {
-      if (er.code === 'EACCES' || options && options.ignoreErrors) {
-        er = null
-        is = false
-      }
-    }
-    cb(er, is)
-  })
-}
-
-function sync (path, options) {
-  // my kingdom for a filtered catch
-  try {
-    return core.sync(path, options || {})
-  } catch (er) {
-    if (options && options.ignoreErrors || er.code === 'EACCES') {
-      return false
-    } else {
-      throw er
-    }
-  }
-}
-
-
-/***/ }),
-
-/***/ 747:
-/***/ (function(module) {
-
-module.exports = require("fs");
-
-/***/ }),
-
-/***/ 751:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-var defer = __webpack_require__(500);
-
-// API
-module.exports = async;
-
-/**
- * Runs provided callback asynchronously
- * even if callback itself is not
- *
- * @param   {function} callback - callback to invoke
- * @returns {function} - augmented callback
- */
-function async(callback)
-{
-  var isAsync = false;
-
-  // check if async happened
-  defer(function() { isAsync = true; });
-
-  return function async_callback(err, result)
-  {
-    if (isAsync)
-    {
-      callback(err, result);
-    }
-    else
-    {
-      defer(function nextTick_callback()
-      {
-        callback(err, result);
-      });
-    }
-  };
-}
-
-
-/***/ }),
-
-/***/ 753:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
-
-var endpoint = __webpack_require__(385);
-var universalUserAgent = __webpack_require__(211);
-var isPlainObject = _interopDefault(__webpack_require__(548));
-var nodeFetch = _interopDefault(__webpack_require__(454));
-var requestError = __webpack_require__(257);
-
-const VERSION = "5.4.2";
-
-function getBufferResponse(response) {
-  return response.arrayBuffer();
-}
-
-function fetchWrapper(requestOptions) {
-  if (isPlainObject(requestOptions.body) || Array.isArray(requestOptions.body)) {
-    requestOptions.body = JSON.stringify(requestOptions.body);
-  }
-
-  let headers = {};
-  let status;
-  let url;
-  const fetch = requestOptions.request && requestOptions.request.fetch || nodeFetch;
-  return fetch(requestOptions.url, Object.assign({
-    method: requestOptions.method,
-    body: requestOptions.body,
-    headers: requestOptions.headers,
-    redirect: requestOptions.redirect
-  }, requestOptions.request)).then(response => {
-    url = response.url;
-    status = response.status;
-
-    for (const keyAndValue of response.headers) {
-      headers[keyAndValue[0]] = keyAndValue[1];
-    }
-
-    if (status === 204 || status === 205) {
-      return;
-    } // GitHub API returns 200 for HEAD requests
-
-
-    if (requestOptions.method === "HEAD") {
-      if (status < 400) {
-        return;
-      }
-
-      throw new requestError.RequestError(response.statusText, status, {
-        headers,
-        request: requestOptions
-      });
-    }
-
-    if (status === 304) {
-      throw new requestError.RequestError("Not modified", status, {
-        headers,
-        request: requestOptions
-      });
-    }
-
-    if (status >= 400) {
-      return response.text().then(message => {
-        const error = new requestError.RequestError(message, status, {
-          headers,
-          request: requestOptions
-        });
-
-        try {
-          let responseBody = JSON.parse(error.message);
-          Object.assign(error, responseBody);
-          let errors = responseBody.errors; // Assumption `errors` would always be in Array format
-
-          error.message = error.message + ": " + errors.map(JSON.stringify).join(", ");
-        } catch (e) {// ignore, see octokit/rest.js#684
-        }
-
-        throw error;
-      });
-    }
-
-    const contentType = response.headers.get("content-type");
-
-    if (/application\/json/.test(contentType)) {
-      return response.json();
-    }
-
-    if (!contentType || /^text\/|charset=utf-8$/.test(contentType)) {
-      return response.text();
-    }
-
-    return getBufferResponse(response);
-  }).then(data => {
-    return {
-      status,
-      url,
-      headers,
-      data
-    };
-  }).catch(error => {
-    if (error instanceof requestError.RequestError) {
-      throw error;
-    }
-
-    throw new requestError.RequestError(error.message, 500, {
-      headers,
-      request: requestOptions
-    });
-  });
-}
-
-function withDefaults(oldEndpoint, newDefaults) {
-  const endpoint = oldEndpoint.defaults(newDefaults);
-
-  const newApi = function (route, parameters) {
-    const endpointOptions = endpoint.merge(route, parameters);
-
-    if (!endpointOptions.request || !endpointOptions.request.hook) {
-      return fetchWrapper(endpoint.parse(endpointOptions));
-    }
-
-    const request = (route, parameters) => {
-      return fetchWrapper(endpoint.parse(endpoint.merge(route, parameters)));
-    };
-
-    Object.assign(request, {
-      endpoint,
-      defaults: withDefaults.bind(null, endpoint)
-    });
-    return endpointOptions.request.hook(request, endpointOptions);
-  };
-
-  return Object.assign(newApi, {
-    endpoint,
-    defaults: withDefaults.bind(null, endpoint)
-  });
-}
-
-const request = withDefaults(endpoint.endpoint, {
-  headers: {
-    "user-agent": `octokit-request.js/${VERSION} ${universalUserAgent.getUserAgent()}`
-  }
-});
-
-exports.request = request;
-//# sourceMappingURL=index.js.map
-
-
-/***/ }),
-
-/***/ 761:
-/***/ (function(module) {
-
-module.exports = require("zlib");
-
-/***/ }),
-
-/***/ 763:
-/***/ (function(module) {
-
-module.exports = removeHook
-
-function removeHook (state, name, method) {
-  if (!state.registry[name]) {
-    return
-  }
-
-  var index = state.registry[name]
-    .map(function (registered) { return registered.orig })
-    .indexOf(method)
-
-  if (index === -1) {
-    return
-  }
-
-  state.registry[name].splice(index, 1)
-}
-
-
-/***/ }),
-
-/***/ 768:
-/***/ (function(module) {
-
-"use strict";
-
-module.exports = function (x) {
-	var lf = typeof x === 'string' ? '\n' : '\n'.charCodeAt();
-	var cr = typeof x === 'string' ? '\r' : '\r'.charCodeAt();
-
-	if (x[x.length - 1] === lf) {
-		x = x.slice(0, x.length - 1);
-	}
-
-	if (x[x.length - 1] === cr) {
-		x = x.slice(0, x.length - 1);
-	}
-
-	return x;
-};
-
-
-/***/ }),
-
-/***/ 774:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-
-var utils = __webpack_require__(35);
-var normalizeHeaderName = __webpack_require__(411);
-
-var DEFAULT_CONTENT_TYPE = {
-  'Content-Type': 'application/x-www-form-urlencoded'
-};
-
-function setContentTypeIfUnset(headers, value) {
-  if (!utils.isUndefined(headers) && utils.isUndefined(headers['Content-Type'])) {
-    headers['Content-Type'] = value;
-  }
-}
-
-function getDefaultAdapter() {
-  var adapter;
-  if (typeof XMLHttpRequest !== 'undefined') {
-    // For browsers use XHR adapter
-    adapter = __webpack_require__(219);
-  } else if (typeof process !== 'undefined' && Object.prototype.toString.call(process) === '[object process]') {
-    // For node use HTTP adapter
-    adapter = __webpack_require__(670);
-  }
-  return adapter;
-}
-
-var defaults = {
-  adapter: getDefaultAdapter(),
-
-  transformRequest: [function transformRequest(data, headers) {
-    normalizeHeaderName(headers, 'Accept');
-    normalizeHeaderName(headers, 'Content-Type');
-    if (utils.isFormData(data) ||
-      utils.isArrayBuffer(data) ||
-      utils.isBuffer(data) ||
-      utils.isStream(data) ||
-      utils.isFile(data) ||
-      utils.isBlob(data)
-    ) {
-      return data;
-    }
-    if (utils.isArrayBufferView(data)) {
-      return data.buffer;
-    }
-    if (utils.isURLSearchParams(data)) {
-      setContentTypeIfUnset(headers, 'application/x-www-form-urlencoded;charset=utf-8');
-      return data.toString();
-    }
-    if (utils.isObject(data)) {
-      setContentTypeIfUnset(headers, 'application/json;charset=utf-8');
-      return JSON.stringify(data);
-    }
-    return data;
-  }],
-
-  transformResponse: [function transformResponse(data) {
-    /*eslint no-param-reassign:0*/
-    if (typeof data === 'string') {
-      try {
-        data = JSON.parse(data);
-      } catch (e) { /* Ignore */ }
-    }
-    return data;
-  }],
-
-  /**
-   * A timeout in milliseconds to abort a request. If set to 0 (default) a
-   * timeout is not created.
-   */
-  timeout: 0,
-
-  xsrfCookieName: 'XSRF-TOKEN',
-  xsrfHeaderName: 'X-XSRF-TOKEN',
-
-  maxContentLength: -1,
-
-  validateStatus: function validateStatus(status) {
-    return status >= 200 && status < 300;
-  }
-};
-
-defaults.headers = {
-  common: {
-    'Accept': 'application/json, text/plain, */*'
-  }
-};
-
-utils.forEach(['delete', 'get', 'head'], function forEachMethodNoData(method) {
-  defaults.headers[method] = {};
-});
-
-utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
-  defaults.headers[method] = utils.merge(DEFAULT_CONTENT_TYPE);
-});
-
-module.exports = defaults;
-
-
-/***/ }),
-
-/***/ 777:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = getFirstPage
-
-const getPage = __webpack_require__(265)
-
-function getFirstPage (octokit, link, headers) {
-  return getPage(octokit, link, 'first', headers)
-}
-
-
-/***/ }),
-
-/***/ 779:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-
-var utils = __webpack_require__(35);
-var buildURL = __webpack_require__(133);
-var InterceptorManager = __webpack_require__(283);
-var dispatchRequest = __webpack_require__(946);
-var mergeConfig = __webpack_require__(825);
-
-/**
- * Create a new instance of Axios
- *
- * @param {Object} instanceConfig The default config for the instance
- */
-function Axios(instanceConfig) {
-  this.defaults = instanceConfig;
-  this.interceptors = {
-    request: new InterceptorManager(),
-    response: new InterceptorManager()
-  };
-}
-
-/**
- * Dispatch a request
- *
- * @param {Object} config The config specific for this request (merged with this.defaults)
- */
-Axios.prototype.request = function request(config) {
-  /*eslint no-param-reassign:0*/
-  // Allow for axios('example/url'[, config]) a la fetch API
-  if (typeof config === 'string') {
-    config = arguments[1] || {};
-    config.url = arguments[0];
-  } else {
-    config = config || {};
-  }
-
-  config = mergeConfig(this.defaults, config);
-
-  // Set config.method
-  if (config.method) {
-    config.method = config.method.toLowerCase();
-  } else if (this.defaults.method) {
-    config.method = this.defaults.method.toLowerCase();
-  } else {
-    config.method = 'get';
-  }
-
-  // Hook up interceptors middleware
-  var chain = [dispatchRequest, undefined];
-  var promise = Promise.resolve(config);
-
-  this.interceptors.request.forEach(function unshiftRequestInterceptors(interceptor) {
-    chain.unshift(interceptor.fulfilled, interceptor.rejected);
-  });
-
-  this.interceptors.response.forEach(function pushResponseInterceptors(interceptor) {
-    chain.push(interceptor.fulfilled, interceptor.rejected);
-  });
-
-  while (chain.length) {
-    promise = promise.then(chain.shift(), chain.shift());
-  }
-
-  return promise;
-};
-
-Axios.prototype.getUri = function getUri(config) {
-  config = mergeConfig(this.defaults, config);
-  return buildURL(config.url, config.params, config.paramsSerializer).replace(/^\?/, '');
-};
-
-// Provide aliases for supported request methods
-utils.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData(method) {
-  /*eslint func-names:0*/
-  Axios.prototype[method] = function(url, config) {
-    return this.request(utils.merge(config || {}, {
-      method: method,
-      url: url
-    }));
-  };
-});
-
-utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
-  /*eslint func-names:0*/
-  Axios.prototype[method] = function(url, data, config) {
-    return this.request(utils.merge(config || {}, {
-      method: method,
-      url: url,
-      data: data
-    }));
-  };
-});
-
-module.exports = Axios;
-
-
-/***/ }),
-
-/***/ 796:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
-
-var osName = _interopDefault(__webpack_require__(2));
-
-function getUserAgent() {
-  try {
-    return `Node.js/${process.version.substr(1)} (${osName()}; ${process.arch})`;
-  } catch (error) {
-    if (/wmic os get Caption/.test(error.message)) {
-      return "Windows <version undetectable>";
-    }
-
-    throw error;
-  }
-}
-
-exports.getUserAgent = getUserAgent;
-//# sourceMappingURL=index.js.map
-
-
-/***/ }),
-
-/***/ 813:
-/***/ (function(__unusedmodule, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-async function auth(token) {
-  const tokenType = token.split(/\./).length === 3 ? "app" : /^v\d+\./.test(token) ? "installation" : "oauth";
-  return {
-    type: "token",
-    token: token,
-    tokenType
-  };
-}
-
-/**
- * Prefix token for usage in the Authorization header
- *
- * @param token OAuth token or JSON Web Token
- */
-function withAuthorizationPrefix(token) {
-  if (token.split(/\./).length === 3) {
-    return `bearer ${token}`;
-  }
-
-  return `token ${token}`;
-}
-
-async function hook(token, request, route, parameters) {
-  const endpoint = request.endpoint.merge(route, parameters);
-  endpoint.headers.authorization = withAuthorizationPrefix(token);
-  return request(endpoint);
-}
-
-const createTokenAuth = function createTokenAuth(token) {
-  if (!token) {
-    throw new Error("[@octokit/auth-token] No token passed to createTokenAuth");
-  }
-
-  if (typeof token !== "string") {
-    throw new Error("[@octokit/auth-token] Token passed to createTokenAuth is not a string");
-  }
-
-  token = token.replace(/^(token|bearer) +/i, "");
-  return Object.assign(auth.bind(null, token), {
-    hook: hook.bind(null, token)
-  });
-};
-
-exports.createTokenAuth = createTokenAuth;
-//# sourceMappingURL=index.js.map
-
-
-/***/ }),
-
-/***/ 816:
-/***/ (function(module) {
-
-"use strict";
-
-module.exports = /^#!.*/;
-
-
-/***/ }),
-
-/***/ 818:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = isexe
-isexe.sync = sync
-
-var fs = __webpack_require__(747)
-
-function checkPathExt (path, options) {
-  var pathext = options.pathExt !== undefined ?
-    options.pathExt : process.env.PATHEXT
-
-  if (!pathext) {
-    return true
-  }
-
-  pathext = pathext.split(';')
-  if (pathext.indexOf('') !== -1) {
-    return true
-  }
-  for (var i = 0; i < pathext.length; i++) {
-    var p = pathext[i].toLowerCase()
-    if (p && path.substr(-p.length).toLowerCase() === p) {
-      return true
-    }
-  }
-  return false
-}
-
-function checkStat (stat, path, options) {
-  if (!stat.isSymbolicLink() && !stat.isFile()) {
-    return false
-  }
-  return checkPathExt(path, options)
-}
-
-function isexe (path, options, cb) {
-  fs.stat(path, function (er, stat) {
-    cb(er, er ? false : checkStat(stat, path, options))
-  })
-}
-
-function sync (path, options) {
-  return checkStat(fs.statSync(path), path, options)
-}
-
-
-/***/ }),
-
-/***/ 825:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-
-var utils = __webpack_require__(35);
-
-/**
- * Config-specific merge-function which creates a new config-object
- * by merging two configuration objects together.
- *
- * @param {Object} config1
- * @param {Object} config2
- * @returns {Object} New object resulting from merging config2 to config1
- */
-module.exports = function mergeConfig(config1, config2) {
-  // eslint-disable-next-line no-param-reassign
-  config2 = config2 || {};
-  var config = {};
-
-  var valueFromConfig2Keys = ['url', 'method', 'params', 'data'];
-  var mergeDeepPropertiesKeys = ['headers', 'auth', 'proxy'];
-  var defaultToConfig2Keys = [
-    'baseURL', 'url', 'transformRequest', 'transformResponse', 'paramsSerializer',
-    'timeout', 'withCredentials', 'adapter', 'responseType', 'xsrfCookieName',
-    'xsrfHeaderName', 'onUploadProgress', 'onDownloadProgress',
-    'maxContentLength', 'validateStatus', 'maxRedirects', 'httpAgent',
-    'httpsAgent', 'cancelToken', 'socketPath'
-  ];
-
-  utils.forEach(valueFromConfig2Keys, function valueFromConfig2(prop) {
-    if (typeof config2[prop] !== 'undefined') {
-      config[prop] = config2[prop];
-    }
-  });
-
-  utils.forEach(mergeDeepPropertiesKeys, function mergeDeepProperties(prop) {
-    if (utils.isObject(config2[prop])) {
-      config[prop] = utils.deepMerge(config1[prop], config2[prop]);
-    } else if (typeof config2[prop] !== 'undefined') {
-      config[prop] = config2[prop];
-    } else if (utils.isObject(config1[prop])) {
-      config[prop] = utils.deepMerge(config1[prop]);
-    } else if (typeof config1[prop] !== 'undefined') {
-      config[prop] = config1[prop];
-    }
-  });
-
-  utils.forEach(defaultToConfig2Keys, function defaultToConfig2(prop) {
-    if (typeof config2[prop] !== 'undefined') {
-      config[prop] = config2[prop];
-    } else if (typeof config1[prop] !== 'undefined') {
-      config[prop] = config1[prop];
-    }
-  });
-
-  var axiosKeys = valueFromConfig2Keys
-    .concat(mergeDeepPropertiesKeys)
-    .concat(defaultToConfig2Keys);
-
-  var otherKeys = Object
-    .keys(config2)
-    .filter(function filterAxiosKeys(key) {
-      return axiosKeys.indexOf(key) === -1;
-    });
-
-  utils.forEach(otherKeys, function otherKeysDefaultToConfig2(prop) {
-    if (typeof config2[prop] !== 'undefined') {
-      config[prop] = config2[prop];
-    } else if (typeof config1[prop] !== 'undefined') {
-      config[prop] = config1[prop];
-    }
-  });
-
-  return config;
-};
-
-
-/***/ }),
-
-/***/ 826:
-/***/ (function(module) {
-
-"use strict";
-
-
-/**
- * A `Cancel` is an object that is thrown when an operation is canceled.
- *
- * @class
- * @param {string=} message The message.
- */
-function Cancel(message) {
-  this.message = message;
-}
-
-Cancel.prototype.toString = function toString() {
-  return 'Cancel' + (this.message ? ': ' + this.message : '');
-};
-
-Cancel.prototype.__CANCEL__ = true;
-
-module.exports = Cancel;
-
-
-/***/ }),
-
-/***/ 835:
-/***/ (function(module) {
-
-module.exports = require("url");
-
-/***/ }),
-
-/***/ 842:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
 "use strict";
@@ -27617,6 +24789,2768 @@ exports.restEndpointMethods = restEndpointMethods;
 
 /***/ }),
 
+/***/ 563:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = getPreviousPage
+
+const getPage = __webpack_require__(265)
+
+function getPreviousPage (octokit, link, headers) {
+  return getPage(octokit, link, 'prev', headers)
+}
+
+
+/***/ }),
+
+/***/ 564:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+
+var createError = __webpack_require__(26);
+
+/**
+ * Resolve or reject a Promise based on response status.
+ *
+ * @param {Function} resolve A function that resolves the promise.
+ * @param {Function} reject A function that rejects the promise.
+ * @param {object} response The response.
+ */
+module.exports = function settle(resolve, reject, response) {
+  var validateStatus = response.config.validateStatus;
+  if (!validateStatus || validateStatus(response.status)) {
+    resolve(response);
+  } else {
+    reject(createError(
+      'Request failed with status code ' + response.status,
+      response.config,
+      null,
+      response.request,
+      response
+    ));
+  }
+};
+
+
+/***/ }),
+
+/***/ 566:
+/***/ (function(module) {
+
+// API
+module.exports = abort;
+
+/**
+ * Aborts leftover active jobs
+ *
+ * @param {object} state - current state object
+ */
+function abort(state)
+{
+  Object.keys(state.jobs).forEach(clean.bind(state));
+
+  // reset leftover jobs
+  state.jobs = {};
+}
+
+/**
+ * Cleans up leftover job by invoking abort function for the provided job id
+ *
+ * @this  state
+ * @param {string|number} key - job id to abort
+ */
+function clean(key)
+{
+  if (typeof this.jobs[key] == 'function')
+  {
+    this.jobs[key]();
+  }
+}
+
+
+/***/ }),
+
+/***/ 568:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+
+const path = __webpack_require__(622);
+const niceTry = __webpack_require__(948);
+const resolveCommand = __webpack_require__(489);
+const escape = __webpack_require__(462);
+const readShebang = __webpack_require__(389);
+const semver = __webpack_require__(470);
+
+const isWin = process.platform === 'win32';
+const isExecutableRegExp = /\.(?:com|exe)$/i;
+const isCmdShimRegExp = /node_modules[\\/].bin[\\/][^\\/]+\.cmd$/i;
+
+// `options.shell` is supported in Node ^4.8.0, ^5.7.0 and >= 6.0.0
+const supportsShellOption = niceTry(() => semver.satisfies(process.version, '^4.8.0 || ^5.7.0 || >= 6.0.0', true)) || false;
+
+function detectShebang(parsed) {
+    parsed.file = resolveCommand(parsed);
+
+    const shebang = parsed.file && readShebang(parsed.file);
+
+    if (shebang) {
+        parsed.args.unshift(parsed.file);
+        parsed.command = shebang;
+
+        return resolveCommand(parsed);
+    }
+
+    return parsed.file;
+}
+
+function parseNonShell(parsed) {
+    if (!isWin) {
+        return parsed;
+    }
+
+    // Detect & add support for shebangs
+    const commandFile = detectShebang(parsed);
+
+    // We don't need a shell if the command filename is an executable
+    const needsShell = !isExecutableRegExp.test(commandFile);
+
+    // If a shell is required, use cmd.exe and take care of escaping everything correctly
+    // Note that `forceShell` is an hidden option used only in tests
+    if (parsed.options.forceShell || needsShell) {
+        // Need to double escape meta chars if the command is a cmd-shim located in `node_modules/.bin/`
+        // The cmd-shim simply calls execute the package bin file with NodeJS, proxying any argument
+        // Because the escape of metachars with ^ gets interpreted when the cmd.exe is first called,
+        // we need to double escape them
+        const needsDoubleEscapeMetaChars = isCmdShimRegExp.test(commandFile);
+
+        // Normalize posix paths into OS compatible paths (e.g.: foo/bar -> foo\bar)
+        // This is necessary otherwise it will always fail with ENOENT in those cases
+        parsed.command = path.normalize(parsed.command);
+
+        // Escape command & arguments
+        parsed.command = escape.command(parsed.command);
+        parsed.args = parsed.args.map((arg) => escape.argument(arg, needsDoubleEscapeMetaChars));
+
+        const shellCommand = [parsed.command].concat(parsed.args).join(' ');
+
+        parsed.args = ['/d', '/s', '/c', `"${shellCommand}"`];
+        parsed.command = process.env.comspec || 'cmd.exe';
+        parsed.options.windowsVerbatimArguments = true; // Tell node's spawn that the arguments are already escaped
+    }
+
+    return parsed;
+}
+
+function parseShell(parsed) {
+    // If node supports the shell option, there's no need to mimic its behavior
+    if (supportsShellOption) {
+        return parsed;
+    }
+
+    // Mimic node shell option
+    // See https://github.com/nodejs/node/blob/b9f6a2dc059a1062776133f3d4fd848c4da7d150/lib/child_process.js#L335
+    const shellCommand = [parsed.command].concat(parsed.args).join(' ');
+
+    if (isWin) {
+        parsed.command = typeof parsed.options.shell === 'string' ? parsed.options.shell : process.env.comspec || 'cmd.exe';
+        parsed.args = ['/d', '/s', '/c', `"${shellCommand}"`];
+        parsed.options.windowsVerbatimArguments = true; // Tell node's spawn that the arguments are already escaped
+    } else {
+        if (typeof parsed.options.shell === 'string') {
+            parsed.command = parsed.options.shell;
+        } else if (process.platform === 'android') {
+            parsed.command = '/system/bin/sh';
+        } else {
+            parsed.command = '/bin/sh';
+        }
+
+        parsed.args = ['-c', shellCommand];
+    }
+
+    return parsed;
+}
+
+function parse(command, args, options) {
+    // Normalize arguments, similar to nodejs
+    if (args && !Array.isArray(args)) {
+        options = args;
+        args = null;
+    }
+
+    args = args ? args.slice(0) : []; // Clone array to avoid changing the original
+    options = Object.assign({}, options); // Clone object to avoid changing the original
+
+    // Build our parsed object
+    const parsed = {
+        command,
+        args,
+        options,
+        file: undefined,
+        original: {
+            command,
+            args,
+        },
+    };
+
+    // Delegate further parsing to shell or non-shell
+    return options.shell ? parseShell(parsed) : parseNonShell(parsed);
+}
+
+module.exports = parse;
+
+
+/***/ }),
+
+/***/ 577:
+/***/ (function(module) {
+
+module.exports = getPageLinks
+
+function getPageLinks (link) {
+  link = link.link || link.headers.link || ''
+
+  const links = {}
+
+  // link format:
+  // '<https://api.github.com/users/aseemk/followers?page=2>; rel="next", <https://api.github.com/users/aseemk/followers?page=2>; rel="last"'
+  link.replace(/<([^>]*)>;\s*rel="([\w]*)"/g, (m, uri, type) => {
+    links[type] = uri
+  })
+
+  return links
+}
+
+
+/***/ }),
+
+/***/ 589:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+
+var utils = __webpack_require__(35);
+
+/**
+ * Transform the data for a request or a response
+ *
+ * @param {Object|String} data The data to be transformed
+ * @param {Array} headers The headers for the request or response
+ * @param {Array|Function} fns A single function or Array of functions
+ * @returns {*} The resulting transformed data
+ */
+module.exports = function transformData(data, headers, fns) {
+  /*eslint no-param-reassign:0*/
+  utils.forEach(fns, function transform(fn) {
+    data = fn(data, headers);
+  });
+
+  return data;
+};
+
+
+/***/ }),
+
+/***/ 590:
+/***/ (function(module) {
+
+"use strict";
+
+
+/**
+ * Determines whether the specified URL is absolute
+ *
+ * @param {string} url The URL to test
+ * @returns {boolean} True if the specified URL is absolute, otherwise false
+ */
+module.exports = function isAbsoluteURL(url) {
+  // A URL is considered absolute if it begins with "<scheme>://" or "//" (protocol-relative URL).
+  // RFC 3986 defines scheme name as a sequence of characters beginning with a letter and followed
+  // by any combination of letters, digits, plus, period, or hyphen.
+  return /^([a-z][a-z\d\+\-\.]*:)?\/\//i.test(url);
+};
+
+
+/***/ }),
+
+/***/ 600:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+var RetryOperation = __webpack_require__(988);
+
+exports.operation = function(options) {
+  var timeouts = exports.timeouts(options);
+  return new RetryOperation(timeouts, {
+      forever: options && options.forever,
+      unref: options && options.unref,
+      maxRetryTime: options && options.maxRetryTime
+  });
+};
+
+exports.timeouts = function(options) {
+  if (options instanceof Array) {
+    return [].concat(options);
+  }
+
+  var opts = {
+    retries: 10,
+    factor: 2,
+    minTimeout: 1 * 1000,
+    maxTimeout: Infinity,
+    randomize: false
+  };
+  for (var key in options) {
+    opts[key] = options[key];
+  }
+
+  if (opts.minTimeout > opts.maxTimeout) {
+    throw new Error('minTimeout is greater than maxTimeout');
+  }
+
+  var timeouts = [];
+  for (var i = 0; i < opts.retries; i++) {
+    timeouts.push(this.createTimeout(i, opts));
+  }
+
+  if (options && options.forever && !timeouts.length) {
+    timeouts.push(this.createTimeout(i, opts));
+  }
+
+  // sort the array numerically ascending
+  timeouts.sort(function(a,b) {
+    return a - b;
+  });
+
+  return timeouts;
+};
+
+exports.createTimeout = function(attempt, opts) {
+  var random = (opts.randomize)
+    ? (Math.random() + 1)
+    : 1;
+
+  var timeout = Math.round(random * opts.minTimeout * Math.pow(opts.factor, attempt));
+  timeout = Math.min(timeout, opts.maxTimeout);
+
+  return timeout;
+};
+
+exports.wrap = function(obj, options, methods) {
+  if (options instanceof Array) {
+    methods = options;
+    options = null;
+  }
+
+  if (!methods) {
+    methods = [];
+    for (var key in obj) {
+      if (typeof obj[key] === 'function') {
+        methods.push(key);
+      }
+    }
+  }
+
+  for (var i = 0; i < methods.length; i++) {
+    var method   = methods[i];
+    var original = obj[method];
+
+    obj[method] = function retryWrapper(original) {
+      var op       = exports.operation(options);
+      var args     = Array.prototype.slice.call(arguments, 1);
+      var callback = args.pop();
+
+      args.push(function(err) {
+        if (op.retry(err)) {
+          return;
+        }
+        if (err) {
+          arguments[0] = op.mainError();
+        }
+        callback.apply(this, arguments);
+      });
+
+      op.attempt(function() {
+        original.apply(obj, args);
+      });
+    }.bind(obj, original);
+    obj[method].options = options;
+  }
+};
+
+
+/***/ }),
+
+/***/ 604:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+const retry = __webpack_require__(321);
+
+class AbortError extends Error {
+	constructor(message) {
+		super();
+
+		if (message instanceof Error) {
+			this.originalError = message;
+			({message} = message);
+		} else {
+			this.originalError = new Error(message);
+			this.originalError.stack = this.stack;
+		}
+
+		this.name = 'AbortError';
+		this.message = message;
+	}
+}
+
+const decorateErrorWithCounts = (error, attemptNumber, options) => {
+	// Minus 1 from attemptNumber because the first attempt does not count as a retry
+	const retriesLeft = options.retries - (attemptNumber - 1);
+
+	error.attemptNumber = attemptNumber;
+	error.retriesLeft = retriesLeft;
+	return error;
+};
+
+const pRetry = (input, options) => new Promise((resolve, reject) => {
+	options = {
+		onFailedAttempt: () => {},
+		retries: 10,
+		...options
+	};
+
+	const operation = retry.operation(options);
+
+	operation.attempt(async attemptNumber => {
+		try {
+			resolve(await input(attemptNumber));
+		} catch (error) {
+			if (!(error instanceof Error)) {
+				reject(new TypeError(`Non-error was thrown: "${error}". You should only throw errors.`));
+				return;
+			}
+
+			if (error instanceof AbortError) {
+				operation.stop();
+				reject(error.originalError);
+			} else if (error instanceof TypeError) {
+				operation.stop();
+				reject(error);
+			} else {
+				decorateErrorWithCounts(error, attemptNumber, options);
+
+				try {
+					await options.onFailedAttempt(error);
+				} catch (error) {
+					reject(error);
+					return;
+				}
+
+				if (!operation.retry(error)) {
+					reject(operation.mainError());
+				}
+			}
+		}
+	});
+});
+
+module.exports = pRetry;
+// TODO: remove this in the next major version
+module.exports.default = pRetry;
+
+module.exports.AbortError = AbortError;
+
+
+/***/ }),
+
+/***/ 605:
+/***/ (function(module) {
+
+module.exports = require("http");
+
+/***/ }),
+
+/***/ 614:
+/***/ (function(module) {
+
+module.exports = require("events");
+
+/***/ }),
+
+/***/ 616:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result["default"] = mod;
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const os = __importStar(__webpack_require__(87));
+const packageJson = __webpack_require__(59); // tslint:disable-line:no-require-imports no-var-requires
+/**
+ * Replaces occurrences of '/' with ':' in a string, since '/' is meaningful inside User-Agent strings as a separator.
+ */
+function replaceSlashes(s) {
+    return s.replace('/', ':');
+}
+const baseUserAgent = `${replaceSlashes(packageJson.name)}/${packageJson.version} ` +
+    `node/${process.version.replace('v', '')} ` +
+    `${os.platform()}/${os.release()}`;
+const appMetadata = {};
+/**
+ * Appends the app metadata into the User-Agent value
+ * @param appMetadata.name name of tool to be counted in instrumentation
+ * @param appMetadata.version version of tool to be counted in instrumentation
+ */
+function addAppMetadata({ name, version }) {
+    appMetadata[replaceSlashes(name)] = version;
+}
+exports.addAppMetadata = addAppMetadata;
+/**
+ * Returns the current User-Agent value for instrumentation
+ */
+function getUserAgent() {
+    const appIdentifier = Object.entries(appMetadata).map(([name, version]) => `${name}/${version}`).join(' ');
+    // only prepend the appIdentifier when its not empty
+    return ((appIdentifier.length > 0) ? `${appIdentifier} ` : '') + baseUserAgent;
+}
+exports.getUserAgent = getUserAgent;
+//# sourceMappingURL=instrument.js.map
+
+/***/ }),
+
+/***/ 621:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+const path = __webpack_require__(622);
+const pathKey = __webpack_require__(39);
+
+module.exports = opts => {
+	opts = Object.assign({
+		cwd: process.cwd(),
+		path: process.env[pathKey()]
+	}, opts);
+
+	let prev;
+	let pth = path.resolve(opts.cwd);
+	const ret = [];
+
+	while (prev !== pth) {
+		ret.push(path.join(pth, 'node_modules/.bin'));
+		prev = pth;
+		pth = path.resolve(pth, '..');
+	}
+
+	// ensure the running `node` binary is used
+	ret.push(path.dirname(process.execPath));
+
+	return ret.concat(opts.path).join(path.delimiter);
+};
+
+module.exports.env = opts => {
+	opts = Object.assign({
+		env: process.env
+	}, opts);
+
+	const env = Object.assign({}, opts.env);
+	const path = pathKey({env});
+
+	opts.path = env[path];
+	env[path] = module.exports(opts);
+
+	return env;
+};
+
+
+/***/ }),
+
+/***/ 622:
+/***/ (function(module) {
+
+module.exports = require("path");
+
+/***/ }),
+
+/***/ 625:
+/***/ (function(__unusedmodule, exports) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+/**
+ * A dictionary of codes for errors produced by this package
+ */
+var ErrorCode;
+(function (ErrorCode) {
+    ErrorCode["RequestError"] = "slack_webapi_request_error";
+    ErrorCode["HTTPError"] = "slack_webapi_http_error";
+    ErrorCode["PlatformError"] = "slack_webapi_platform_error";
+    ErrorCode["RateLimitedError"] = "slack_webapi_rate_limited_error";
+})(ErrorCode = exports.ErrorCode || (exports.ErrorCode = {}));
+/**
+ * Factory for producing a {@link CodedError} from a generic error
+ */
+function errorWithCode(error, code) {
+    // NOTE: might be able to return something more specific than a CodedError with conditional typing
+    const codedError = error;
+    codedError.code = code;
+    return codedError;
+}
+/**
+ * A factory to create WebAPIRequestError objects
+ * @param original - original error
+ */
+function requestErrorWithOriginal(original) {
+    const error = errorWithCode(new Error(`A request error occurred: ${original.message}`), ErrorCode.RequestError);
+    error.original = original;
+    return error;
+}
+exports.requestErrorWithOriginal = requestErrorWithOriginal;
+/**
+ * A factory to create WebAPIHTTPError objects
+ * @param response - original error
+ */
+function httpErrorFromResponse(response) {
+    const error = errorWithCode(new Error(`An HTTP protocol error occurred: statusCode = ${response.status}`), ErrorCode.HTTPError);
+    error.statusCode = response.status;
+    error.statusMessage = response.statusText;
+    error.headers = response.headers;
+    error.body = response.data;
+    return error;
+}
+exports.httpErrorFromResponse = httpErrorFromResponse;
+/**
+ * A factory to create WebAPIPlatformError objects
+ * @param result - Web API call result
+ */
+function platformErrorFromResult(result) {
+    const error = errorWithCode(new Error(`An API error occurred: ${result.error}`), ErrorCode.PlatformError);
+    error.data = result;
+    return error;
+}
+exports.platformErrorFromResult = platformErrorFromResult;
+/**
+ * A factory to create WebAPIRateLimitedError objects
+ * @param retrySec - Number of seconds that the request can be retried in
+ */
+function rateLimitedErrorWithDelay(retrySec) {
+    const error = errorWithCode(new Error(`A rate-limit has been reached, you may retry this request in ${retrySec} seconds`), ErrorCode.RateLimitedError);
+    error.retryAfter = retrySec;
+    return error;
+}
+exports.rateLimitedErrorWithDelay = rateLimitedErrorWithDelay;
+//# sourceMappingURL=errors.js.map
+
+/***/ }),
+
+/***/ 626:
+/***/ (function(module) {
+
+"use strict";
+
+
+/*!
+ * isobject <https://github.com/jonschlinkert/isobject>
+ *
+ * Copyright (c) 2014-2017, Jon Schlinkert.
+ * Released under the MIT License.
+ */
+
+function isObject(val) {
+  return val != null && typeof val === 'object' && Array.isArray(val) === false;
+}
+
+/*!
+ * is-plain-object <https://github.com/jonschlinkert/is-plain-object>
+ *
+ * Copyright (c) 2014-2017, Jon Schlinkert.
+ * Released under the MIT License.
+ */
+
+function isObjectObject(o) {
+  return isObject(o) === true
+    && Object.prototype.toString.call(o) === '[object Object]';
+}
+
+function isPlainObject(o) {
+  var ctor,prot;
+
+  if (isObjectObject(o) === false) return false;
+
+  // If has modified constructor
+  ctor = o.constructor;
+  if (typeof ctor !== 'function') return false;
+
+  // If has modified prototype
+  prot = ctor.prototype;
+  if (isObjectObject(prot) === false) return false;
+
+  // If constructor does not have an Object-specific method
+  if (prot.hasOwnProperty('isPrototypeOf') === false) {
+    return false;
+  }
+
+  // Most likely a plain Object
+  return true;
+}
+
+module.exports = isPlainObject;
+
+
+/***/ }),
+
+/***/ 631:
+/***/ (function(module) {
+
+module.exports = require("net");
+
+/***/ }),
+
+/***/ 649:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = getLastPage
+
+const getPage = __webpack_require__(265)
+
+function getLastPage (octokit, link, headers) {
+  return getPage(octokit, link, 'last', headers)
+}
+
+
+/***/ }),
+
+/***/ 654:
+/***/ (function(module) {
+
+// This is not the set of all possible signals.
+//
+// It IS, however, the set of all signals that trigger
+// an exit on either Linux or BSD systems.  Linux is a
+// superset of the signal names supported on BSD, and
+// the unknown signals just fail to register, so we can
+// catch that easily enough.
+//
+// Don't bother with SIGKILL.  It's uncatchable, which
+// means that we can't fire any callbacks anyway.
+//
+// If a user does happen to register a handler on a non-
+// fatal signal like SIGWINCH or something, and then
+// exit, it'll end up firing `process.emit('exit')`, so
+// the handler will be fired anyway.
+//
+// SIGBUS, SIGFPE, SIGSEGV and SIGILL, when not raised
+// artificially, inherently leave the process in a
+// state from which it is not safe to try and enter JS
+// listeners.
+module.exports = [
+  'SIGABRT',
+  'SIGALRM',
+  'SIGHUP',
+  'SIGINT',
+  'SIGTERM'
+]
+
+if (process.platform !== 'win32') {
+  module.exports.push(
+    'SIGVTALRM',
+    'SIGXCPU',
+    'SIGXFSZ',
+    'SIGUSR2',
+    'SIGTRAP',
+    'SIGSYS',
+    'SIGQUIT',
+    'SIGIOT'
+    // should detect profiler and enable/disable accordingly.
+    // see #21
+    // 'SIGPROF'
+  )
+}
+
+if (process.platform === 'linux') {
+  module.exports.push(
+    'SIGIO',
+    'SIGPOLL',
+    'SIGPWR',
+    'SIGSTKFLT',
+    'SIGUNUSED'
+  )
+}
+
+
+/***/ }),
+
+/***/ 669:
+/***/ (function(module) {
+
+module.exports = require("util");
+
+/***/ }),
+
+/***/ 670:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+
+var utils = __webpack_require__(35);
+var settle = __webpack_require__(564);
+var buildFullPath = __webpack_require__(960);
+var buildURL = __webpack_require__(133);
+var http = __webpack_require__(605);
+var https = __webpack_require__(211);
+var httpFollow = __webpack_require__(549).http;
+var httpsFollow = __webpack_require__(549).https;
+var url = __webpack_require__(835);
+var zlib = __webpack_require__(761);
+var pkg = __webpack_require__(361);
+var createError = __webpack_require__(26);
+var enhanceError = __webpack_require__(369);
+
+var isHttps = /https:?/;
+
+/*eslint consistent-return:0*/
+module.exports = function httpAdapter(config) {
+  return new Promise(function dispatchHttpRequest(resolvePromise, rejectPromise) {
+    var resolve = function resolve(value) {
+      resolvePromise(value);
+    };
+    var reject = function reject(value) {
+      rejectPromise(value);
+    };
+    var data = config.data;
+    var headers = config.headers;
+
+    // Set User-Agent (required by some servers)
+    // Only set header if it hasn't been set in config
+    // See https://github.com/axios/axios/issues/69
+    if (!headers['User-Agent'] && !headers['user-agent']) {
+      headers['User-Agent'] = 'axios/' + pkg.version;
+    }
+
+    if (data && !utils.isStream(data)) {
+      if (Buffer.isBuffer(data)) {
+        // Nothing to do...
+      } else if (utils.isArrayBuffer(data)) {
+        data = Buffer.from(new Uint8Array(data));
+      } else if (utils.isString(data)) {
+        data = Buffer.from(data, 'utf-8');
+      } else {
+        return reject(createError(
+          'Data after transformation must be a string, an ArrayBuffer, a Buffer, or a Stream',
+          config
+        ));
+      }
+
+      // Add Content-Length header if data exists
+      headers['Content-Length'] = data.length;
+    }
+
+    // HTTP basic authentication
+    var auth = undefined;
+    if (config.auth) {
+      var username = config.auth.username || '';
+      var password = config.auth.password || '';
+      auth = username + ':' + password;
+    }
+
+    // Parse url
+    var fullPath = buildFullPath(config.baseURL, config.url);
+    var parsed = url.parse(fullPath);
+    var protocol = parsed.protocol || 'http:';
+
+    if (!auth && parsed.auth) {
+      var urlAuth = parsed.auth.split(':');
+      var urlUsername = urlAuth[0] || '';
+      var urlPassword = urlAuth[1] || '';
+      auth = urlUsername + ':' + urlPassword;
+    }
+
+    if (auth) {
+      delete headers.Authorization;
+    }
+
+    var isHttpsRequest = isHttps.test(protocol);
+    var agent = isHttpsRequest ? config.httpsAgent : config.httpAgent;
+
+    var options = {
+      path: buildURL(parsed.path, config.params, config.paramsSerializer).replace(/^\?/, ''),
+      method: config.method.toUpperCase(),
+      headers: headers,
+      agent: agent,
+      agents: { http: config.httpAgent, https: config.httpsAgent },
+      auth: auth
+    };
+
+    if (config.socketPath) {
+      options.socketPath = config.socketPath;
+    } else {
+      options.hostname = parsed.hostname;
+      options.port = parsed.port;
+    }
+
+    var proxy = config.proxy;
+    if (!proxy && proxy !== false) {
+      var proxyEnv = protocol.slice(0, -1) + '_proxy';
+      var proxyUrl = process.env[proxyEnv] || process.env[proxyEnv.toUpperCase()];
+      if (proxyUrl) {
+        var parsedProxyUrl = url.parse(proxyUrl);
+        var noProxyEnv = process.env.no_proxy || process.env.NO_PROXY;
+        var shouldProxy = true;
+
+        if (noProxyEnv) {
+          var noProxy = noProxyEnv.split(',').map(function trim(s) {
+            return s.trim();
+          });
+
+          shouldProxy = !noProxy.some(function proxyMatch(proxyElement) {
+            if (!proxyElement) {
+              return false;
+            }
+            if (proxyElement === '*') {
+              return true;
+            }
+            if (proxyElement[0] === '.' &&
+                parsed.hostname.substr(parsed.hostname.length - proxyElement.length) === proxyElement) {
+              return true;
+            }
+
+            return parsed.hostname === proxyElement;
+          });
+        }
+
+
+        if (shouldProxy) {
+          proxy = {
+            host: parsedProxyUrl.hostname,
+            port: parsedProxyUrl.port
+          };
+
+          if (parsedProxyUrl.auth) {
+            var proxyUrlAuth = parsedProxyUrl.auth.split(':');
+            proxy.auth = {
+              username: proxyUrlAuth[0],
+              password: proxyUrlAuth[1]
+            };
+          }
+        }
+      }
+    }
+
+    if (proxy) {
+      options.hostname = proxy.host;
+      options.host = proxy.host;
+      options.headers.host = parsed.hostname + (parsed.port ? ':' + parsed.port : '');
+      options.port = proxy.port;
+      options.path = protocol + '//' + parsed.hostname + (parsed.port ? ':' + parsed.port : '') + options.path;
+
+      // Basic proxy authorization
+      if (proxy.auth) {
+        var base64 = Buffer.from(proxy.auth.username + ':' + proxy.auth.password, 'utf8').toString('base64');
+        options.headers['Proxy-Authorization'] = 'Basic ' + base64;
+      }
+    }
+
+    var transport;
+    var isHttpsProxy = isHttpsRequest && (proxy ? isHttps.test(proxy.protocol) : true);
+    if (config.transport) {
+      transport = config.transport;
+    } else if (config.maxRedirects === 0) {
+      transport = isHttpsProxy ? https : http;
+    } else {
+      if (config.maxRedirects) {
+        options.maxRedirects = config.maxRedirects;
+      }
+      transport = isHttpsProxy ? httpsFollow : httpFollow;
+    }
+
+    if (config.maxContentLength && config.maxContentLength > -1) {
+      options.maxBodyLength = config.maxContentLength;
+    }
+
+    // Create the request
+    var req = transport.request(options, function handleResponse(res) {
+      if (req.aborted) return;
+
+      // uncompress the response body transparently if required
+      var stream = res;
+      switch (res.headers['content-encoding']) {
+      /*eslint default-case:0*/
+      case 'gzip':
+      case 'compress':
+      case 'deflate':
+        // add the unzipper to the body stream processing pipeline
+        stream = (res.statusCode === 204) ? stream : stream.pipe(zlib.createUnzip());
+
+        // remove the content-encoding in order to not confuse downstream operations
+        delete res.headers['content-encoding'];
+        break;
+      }
+
+      // return the last request in case of redirects
+      var lastRequest = res.req || req;
+
+      var response = {
+        status: res.statusCode,
+        statusText: res.statusMessage,
+        headers: res.headers,
+        config: config,
+        request: lastRequest
+      };
+
+      if (config.responseType === 'stream') {
+        response.data = stream;
+        settle(resolve, reject, response);
+      } else {
+        var responseBuffer = [];
+        stream.on('data', function handleStreamData(chunk) {
+          responseBuffer.push(chunk);
+
+          // make sure the content length is not over the maxContentLength if specified
+          if (config.maxContentLength > -1 && Buffer.concat(responseBuffer).length > config.maxContentLength) {
+            stream.destroy();
+            reject(createError('maxContentLength size of ' + config.maxContentLength + ' exceeded',
+              config, null, lastRequest));
+          }
+        });
+
+        stream.on('error', function handleStreamError(err) {
+          if (req.aborted) return;
+          reject(enhanceError(err, config, null, lastRequest));
+        });
+
+        stream.on('end', function handleStreamEnd() {
+          var responseData = Buffer.concat(responseBuffer);
+          if (config.responseType !== 'arraybuffer') {
+            responseData = responseData.toString(config.responseEncoding);
+          }
+
+          response.data = responseData;
+          settle(resolve, reject, response);
+        });
+      }
+    });
+
+    // Handle errors
+    req.on('error', function handleRequestError(err) {
+      if (req.aborted) return;
+      reject(enhanceError(err, config, null, req));
+    });
+
+    // Handle request timeout
+    if (config.timeout) {
+      // Sometime, the response will be very slow, and does not respond, the connect event will be block by event loop system.
+      // And timer callback will be fired, and abort() will be invoked before connection, then get "socket hang up" and code ECONNRESET.
+      // At this time, if we have a large number of request, nodejs will hang up some socket on background. and the number will up and up.
+      // And then these socket which be hang up will devoring CPU little by little.
+      // ClientRequest.setTimeout will be fired on the specify milliseconds, and can make sure that abort() will be fired after connect.
+      req.setTimeout(config.timeout, function handleRequestTimeout() {
+        req.abort();
+        reject(createError('timeout of ' + config.timeout + 'ms exceeded', config, 'ECONNABORTED', req));
+      });
+    }
+
+    if (config.cancelToken) {
+      // Handle cancellation
+      config.cancelToken.promise.then(function onCanceled(cancel) {
+        if (req.aborted) return;
+
+        req.abort();
+        reject(cancel);
+      });
+    }
+
+    // Send the request
+    if (utils.isStream(data)) {
+      data.on('error', function handleStreamError(err) {
+        reject(enhanceError(err, config, null, req));
+      }).pipe(req);
+    } else {
+      req.end(data);
+    }
+  });
+};
+
+
+/***/ }),
+
+/***/ 675:
+/***/ (function(module) {
+
+module.exports = function btoa(str) {
+  return new Buffer(str).toString('base64')
+}
+
+
+/***/ }),
+
+/***/ 688:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+
+var utils = __webpack_require__(35);
+
+module.exports = (
+  utils.isStandardBrowserEnv() ?
+
+  // Standard browser envs have full support of the APIs needed to test
+  // whether the request URL is of the same origin as current location.
+    (function standardBrowserEnv() {
+      var msie = /(msie|trident)/i.test(navigator.userAgent);
+      var urlParsingNode = document.createElement('a');
+      var originURL;
+
+      /**
+    * Parse a URL to discover it's components
+    *
+    * @param {String} url The URL to be parsed
+    * @returns {Object}
+    */
+      function resolveURL(url) {
+        var href = url;
+
+        if (msie) {
+        // IE needs attribute set twice to normalize properties
+          urlParsingNode.setAttribute('href', href);
+          href = urlParsingNode.href;
+        }
+
+        urlParsingNode.setAttribute('href', href);
+
+        // urlParsingNode provides the UrlUtils interface - http://url.spec.whatwg.org/#urlutils
+        return {
+          href: urlParsingNode.href,
+          protocol: urlParsingNode.protocol ? urlParsingNode.protocol.replace(/:$/, '') : '',
+          host: urlParsingNode.host,
+          search: urlParsingNode.search ? urlParsingNode.search.replace(/^\?/, '') : '',
+          hash: urlParsingNode.hash ? urlParsingNode.hash.replace(/^#/, '') : '',
+          hostname: urlParsingNode.hostname,
+          port: urlParsingNode.port,
+          pathname: (urlParsingNode.pathname.charAt(0) === '/') ?
+            urlParsingNode.pathname :
+            '/' + urlParsingNode.pathname
+        };
+      }
+
+      originURL = resolveURL(window.location.href);
+
+      /**
+    * Determine if a URL shares the same origin as the current location
+    *
+    * @param {String} requestURL The URL to test
+    * @returns {boolean} True if URL shares the same origin, otherwise false
+    */
+      return function isURLSameOrigin(requestURL) {
+        var parsed = (utils.isString(requestURL)) ? resolveURL(requestURL) : requestURL;
+        return (parsed.protocol === originURL.protocol &&
+            parsed.host === originURL.host);
+      };
+    })() :
+
+  // Non standard browser envs (web workers, react-native) lack needed support.
+    (function nonStandardBrowserEnv() {
+      return function isURLSameOrigin() {
+        return true;
+      };
+    })()
+);
+
+
+/***/ }),
+
+/***/ 692:
+/***/ (function(__unusedmodule, exports) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+class Deprecation extends Error {
+  constructor(message) {
+    super(message); // Maintains proper stack trace (only available on V8)
+
+    /* istanbul ignore next */
+
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
+
+    this.name = 'Deprecation';
+  }
+
+}
+
+exports.Deprecation = Deprecation;
+
+
+/***/ }),
+
+/***/ 697:
+/***/ (function(module) {
+
+"use strict";
+
+module.exports = (promise, onFinally) => {
+	onFinally = onFinally || (() => {});
+
+	return promise.then(
+		val => new Promise(resolve => {
+			resolve(onFinally());
+		}).then(() => val),
+		err => new Promise(resolve => {
+			resolve(onFinally());
+		}).then(() => {
+			throw err;
+		})
+	);
+};
+
+
+/***/ }),
+
+/***/ 701:
+/***/ (function(__unusedmodule, exports) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+// A set of method names is initialized here and added to each time an argument type extends the CursorPaginationEnabled
+// interface, so that methods are checked against this set when using the pagination helper. If the method name is not
+// found, a warning is emitted to guide the developer to using the method correctly.
+exports.cursorPaginationEnabledMethods = new Set();
+exports.cursorPaginationEnabledMethods.add('admin.apps.approved.list');
+exports.cursorPaginationEnabledMethods.add('admin.apps.requests.list');
+exports.cursorPaginationEnabledMethods.add('admin.apps.restricted.list');
+exports.cursorPaginationEnabledMethods.add('admin.inviteRequests.approved.list');
+exports.cursorPaginationEnabledMethods.add('admin.inviteRequests.denied.list');
+exports.cursorPaginationEnabledMethods.add('admin.inviteRequests.list');
+exports.cursorPaginationEnabledMethods.add('admin.teams.admins.list');
+exports.cursorPaginationEnabledMethods.add('admin.teams.list');
+exports.cursorPaginationEnabledMethods.add('admin.teams.owners.list');
+exports.cursorPaginationEnabledMethods.add('admin.users.list');
+exports.cursorPaginationEnabledMethods.add('channels.list');
+exports.cursorPaginationEnabledMethods.add('chat.scheduledMessages.list');
+exports.cursorPaginationEnabledMethods.add('conversations.history');
+exports.cursorPaginationEnabledMethods.add('conversations.list');
+exports.cursorPaginationEnabledMethods.add('conversations.members');
+exports.cursorPaginationEnabledMethods.add('conversations.replies');
+exports.cursorPaginationEnabledMethods.add('files.info');
+exports.cursorPaginationEnabledMethods.add('files.remote.list');
+exports.cursorPaginationEnabledMethods.add('groups.list');
+exports.cursorPaginationEnabledMethods.add('im.list');
+exports.cursorPaginationEnabledMethods.add('mpim.list');
+exports.cursorPaginationEnabledMethods.add('reactions.list');
+exports.cursorPaginationEnabledMethods.add('stars.list');
+exports.cursorPaginationEnabledMethods.add('users.conversations');
+exports.cursorPaginationEnabledMethods.add('users.list');
+//# sourceMappingURL=methods.js.map
+
+/***/ }),
+
+/***/ 727:
+/***/ (function(module) {
+
+"use strict";
+
+
+module.exports = function bind(fn, thisArg) {
+  return function wrap() {
+    var args = new Array(arguments.length);
+    for (var i = 0; i < args.length; i++) {
+      args[i] = arguments[i];
+    }
+    return fn.apply(thisArg, args);
+  };
+};
+
+
+/***/ }),
+
+/***/ 728:
+/***/ (function(__unusedmodule, exports) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+/**
+ * Severity levels for log entries
+ */
+var LogLevel;
+(function (LogLevel) {
+    LogLevel["ERROR"] = "error";
+    LogLevel["WARN"] = "warn";
+    LogLevel["INFO"] = "info";
+    LogLevel["DEBUG"] = "debug";
+})(LogLevel = exports.LogLevel || (exports.LogLevel = {}));
+/**
+ * Default logger which logs to stdout and stderr
+ */
+class ConsoleLogger {
+    constructor() {
+        this.level = LogLevel.INFO;
+        this.name = '';
+    }
+    getLevel() {
+        return this.level;
+    }
+    /**
+     * Sets the instance's log level so that only messages which are equal or more severe are output to the console.
+     */
+    setLevel(level) {
+        this.level = level;
+    }
+    /**
+     * Set the instance's name, which will appear on each log line before the message.
+     */
+    setName(name) {
+        this.name = name;
+    }
+    /**
+     * Log a debug message
+     */
+    debug(...msg) {
+        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.DEBUG, this.level)) {
+            console.debug(ConsoleLogger.labels.get(LogLevel.DEBUG), this.name, ...msg);
+        }
+    }
+    /**
+     * Log an info message
+     */
+    info(...msg) {
+        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.INFO, this.level)) {
+            console.info(ConsoleLogger.labels.get(LogLevel.INFO), this.name, ...msg);
+        }
+    }
+    /**
+     * Log a warning message
+     */
+    warn(...msg) {
+        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.WARN, this.level)) {
+            console.warn(ConsoleLogger.labels.get(LogLevel.WARN), this.name, ...msg);
+        }
+    }
+    /**
+     * Log an error message
+     */
+    error(...msg) {
+        if (ConsoleLogger.isMoreOrEqualSevere(LogLevel.ERROR, this.level)) {
+            console.error(ConsoleLogger.labels.get(LogLevel.ERROR), this.name, ...msg);
+        }
+    }
+    /**
+     * Helper to compare two log levels and determine if a is equal or more severe than b
+     */
+    static isMoreOrEqualSevere(a, b) {
+        return ConsoleLogger.severity[a] >= ConsoleLogger.severity[b];
+    }
+}
+/** Map of labels for each log level */
+ConsoleLogger.labels = (() => {
+    const entries = Object.entries(LogLevel);
+    const map = entries.map(([key, value]) => {
+        return [value, `[${key}] `];
+    });
+    return new Map(map);
+})();
+/** Map of severity as comparable numbers for each log level */
+ConsoleLogger.severity = {
+    [LogLevel.ERROR]: 400,
+    [LogLevel.WARN]: 300,
+    [LogLevel.INFO]: 200,
+    [LogLevel.DEBUG]: 100,
+};
+exports.ConsoleLogger = ConsoleLogger;
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 732:
+/***/ (function(module) {
+
+"use strict";
+
+
+module.exports = function isCancel(value) {
+  return !!(value && value.__CANCEL__);
+};
+
+
+/***/ }),
+
+/***/ 738:
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * Module dependencies.
+ */
+
+var tty = __webpack_require__(867);
+var util = __webpack_require__(669);
+
+/**
+ * This is the Node.js implementation of `debug()`.
+ *
+ * Expose `debug()` as the module.
+ */
+
+exports = module.exports = __webpack_require__(138);
+exports.init = init;
+exports.log = log;
+exports.formatArgs = formatArgs;
+exports.save = save;
+exports.load = load;
+exports.useColors = useColors;
+
+/**
+ * Colors.
+ */
+
+exports.colors = [ 6, 2, 3, 4, 5, 1 ];
+
+try {
+  var supportsColor = __webpack_require__(247);
+  if (supportsColor && supportsColor.level >= 2) {
+    exports.colors = [
+      20, 21, 26, 27, 32, 33, 38, 39, 40, 41, 42, 43, 44, 45, 56, 57, 62, 63, 68,
+      69, 74, 75, 76, 77, 78, 79, 80, 81, 92, 93, 98, 99, 112, 113, 128, 129, 134,
+      135, 148, 149, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171,
+      172, 173, 178, 179, 184, 185, 196, 197, 198, 199, 200, 201, 202, 203, 204,
+      205, 206, 207, 208, 209, 214, 215, 220, 221
+    ];
+  }
+} catch (err) {
+  // swallow - we only care if `supports-color` is available; it doesn't have to be.
+}
+
+/**
+ * Build up the default `inspectOpts` object from the environment variables.
+ *
+ *   $ DEBUG_COLORS=no DEBUG_DEPTH=10 DEBUG_SHOW_HIDDEN=enabled node script.js
+ */
+
+exports.inspectOpts = Object.keys(process.env).filter(function (key) {
+  return /^debug_/i.test(key);
+}).reduce(function (obj, key) {
+  // camel-case
+  var prop = key
+    .substring(6)
+    .toLowerCase()
+    .replace(/_([a-z])/g, function (_, k) { return k.toUpperCase() });
+
+  // coerce string value into JS value
+  var val = process.env[key];
+  if (/^(yes|on|true|enabled)$/i.test(val)) val = true;
+  else if (/^(no|off|false|disabled)$/i.test(val)) val = false;
+  else if (val === 'null') val = null;
+  else val = Number(val);
+
+  obj[prop] = val;
+  return obj;
+}, {});
+
+/**
+ * Is stdout a TTY? Colored output is enabled when `true`.
+ */
+
+function useColors() {
+  return 'colors' in exports.inspectOpts
+    ? Boolean(exports.inspectOpts.colors)
+    : tty.isatty(process.stderr.fd);
+}
+
+/**
+ * Map %o to `util.inspect()`, all on a single line.
+ */
+
+exports.formatters.o = function(v) {
+  this.inspectOpts.colors = this.useColors;
+  return util.inspect(v, this.inspectOpts)
+    .split('\n').map(function(str) {
+      return str.trim()
+    }).join(' ');
+};
+
+/**
+ * Map %o to `util.inspect()`, allowing multiple lines if needed.
+ */
+
+exports.formatters.O = function(v) {
+  this.inspectOpts.colors = this.useColors;
+  return util.inspect(v, this.inspectOpts);
+};
+
+/**
+ * Adds ANSI color escape codes if enabled.
+ *
+ * @api public
+ */
+
+function formatArgs(args) {
+  var name = this.namespace;
+  var useColors = this.useColors;
+
+  if (useColors) {
+    var c = this.color;
+    var colorCode = '\u001b[3' + (c < 8 ? c : '8;5;' + c);
+    var prefix = '  ' + colorCode + ';1m' + name + ' ' + '\u001b[0m';
+
+    args[0] = prefix + args[0].split('\n').join('\n' + prefix);
+    args.push(colorCode + 'm+' + exports.humanize(this.diff) + '\u001b[0m');
+  } else {
+    args[0] = getDate() + name + ' ' + args[0];
+  }
+}
+
+function getDate() {
+  if (exports.inspectOpts.hideDate) {
+    return '';
+  } else {
+    return new Date().toISOString() + ' ';
+  }
+}
+
+/**
+ * Invokes `util.format()` with the specified arguments and writes to stderr.
+ */
+
+function log() {
+  return process.stderr.write(util.format.apply(util, arguments) + '\n');
+}
+
+/**
+ * Save `namespaces`.
+ *
+ * @param {String} namespaces
+ * @api private
+ */
+
+function save(namespaces) {
+  if (null == namespaces) {
+    // If you set a process.env field to null or undefined, it gets cast to the
+    // string 'null' or 'undefined'. Just delete instead.
+    delete process.env.DEBUG;
+  } else {
+    process.env.DEBUG = namespaces;
+  }
+}
+
+/**
+ * Load `namespaces`.
+ *
+ * @return {String} returns the previously persisted debug modes
+ * @api private
+ */
+
+function load() {
+  return process.env.DEBUG;
+}
+
+/**
+ * Init logic for `debug` instances.
+ *
+ * Create a new `inspectOpts` object in case `useColors` is set
+ * differently for a particular `debug` instance.
+ */
+
+function init (debug) {
+  debug.inspectOpts = {};
+
+  var keys = Object.keys(exports.inspectOpts);
+  for (var i = 0; i < keys.length; i++) {
+    debug.inspectOpts[keys[i]] = exports.inspectOpts[keys[i]];
+  }
+}
+
+/**
+ * Enable namespaces listed in `process.env.DEBUG` initially.
+ */
+
+exports.enable(load());
+
+
+/***/ }),
+
+/***/ 741:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+const { requestLog } = __webpack_require__(916);
+const {
+  restEndpointMethods
+} = __webpack_require__(559);
+
+const Core = __webpack_require__(37);
+
+const CORE_PLUGINS = [
+  __webpack_require__(890),
+  __webpack_require__(953), // deprecated: remove in v17
+  requestLog,
+  __webpack_require__(786),
+  restEndpointMethods,
+  __webpack_require__(341),
+
+  __webpack_require__(850) // deprecated: remove in v17
+];
+
+const OctokitRest = Core.plugin(CORE_PLUGINS);
+
+function DeprecatedOctokit(options) {
+  const warn =
+    options && options.log && options.log.warn
+      ? options.log.warn
+      : console.warn;
+  warn(
+    '[@octokit/rest] `const Octokit = require("@octokit/rest")` is deprecated. Use `const { Octokit } = require("@octokit/rest")` instead'
+  );
+  return new OctokitRest(options);
+}
+
+const Octokit = Object.assign(DeprecatedOctokit, {
+  Octokit: OctokitRest
+});
+
+Object.keys(OctokitRest).forEach(key => {
+  /* istanbul ignore else */
+  if (OctokitRest.hasOwnProperty(key)) {
+    Octokit[key] = OctokitRest[key];
+  }
+});
+
+module.exports = Octokit;
+
+
+/***/ }),
+
+/***/ 742:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+var fs = __webpack_require__(747)
+var core
+if (process.platform === 'win32' || global.TESTING_WINDOWS) {
+  core = __webpack_require__(818)
+} else {
+  core = __webpack_require__(197)
+}
+
+module.exports = isexe
+isexe.sync = sync
+
+function isexe (path, options, cb) {
+  if (typeof options === 'function') {
+    cb = options
+    options = {}
+  }
+
+  if (!cb) {
+    if (typeof Promise !== 'function') {
+      throw new TypeError('callback not provided')
+    }
+
+    return new Promise(function (resolve, reject) {
+      isexe(path, options || {}, function (er, is) {
+        if (er) {
+          reject(er)
+        } else {
+          resolve(is)
+        }
+      })
+    })
+  }
+
+  core(path, options || {}, function (er, is) {
+    // ignore EACCES because that just means we aren't allowed to run it
+    if (er) {
+      if (er.code === 'EACCES' || options && options.ignoreErrors) {
+        er = null
+        is = false
+      }
+    }
+    cb(er, is)
+  })
+}
+
+function sync (path, options) {
+  // my kingdom for a filtered catch
+  try {
+    return core.sync(path, options || {})
+  } catch (er) {
+    if (options && options.ignoreErrors || er.code === 'EACCES') {
+      return false
+    } else {
+      throw er
+    }
+  }
+}
+
+
+/***/ }),
+
+/***/ 747:
+/***/ (function(module) {
+
+module.exports = require("fs");
+
+/***/ }),
+
+/***/ 751:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+var defer = __webpack_require__(500);
+
+// API
+module.exports = async;
+
+/**
+ * Runs provided callback asynchronously
+ * even if callback itself is not
+ *
+ * @param   {function} callback - callback to invoke
+ * @returns {function} - augmented callback
+ */
+function async(callback)
+{
+  var isAsync = false;
+
+  // check if async happened
+  defer(function() { isAsync = true; });
+
+  return function async_callback(err, result)
+  {
+    if (isAsync)
+    {
+      callback(err, result);
+    }
+    else
+    {
+      defer(function nextTick_callback()
+      {
+        callback(err, result);
+      });
+    }
+  };
+}
+
+
+/***/ }),
+
+/***/ 753:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+var endpoint = __webpack_require__(385);
+var universalUserAgent = __webpack_require__(796);
+var isPlainObject = _interopDefault(__webpack_require__(548));
+var nodeFetch = _interopDefault(__webpack_require__(454));
+var requestError = __webpack_require__(257);
+
+const VERSION = "5.4.4";
+
+function getBufferResponse(response) {
+  return response.arrayBuffer();
+}
+
+function fetchWrapper(requestOptions) {
+  if (isPlainObject(requestOptions.body) || Array.isArray(requestOptions.body)) {
+    requestOptions.body = JSON.stringify(requestOptions.body);
+  }
+
+  let headers = {};
+  let status;
+  let url;
+  const fetch = requestOptions.request && requestOptions.request.fetch || nodeFetch;
+  return fetch(requestOptions.url, Object.assign({
+    method: requestOptions.method,
+    body: requestOptions.body,
+    headers: requestOptions.headers,
+    redirect: requestOptions.redirect
+  }, requestOptions.request)).then(response => {
+    url = response.url;
+    status = response.status;
+
+    for (const keyAndValue of response.headers) {
+      headers[keyAndValue[0]] = keyAndValue[1];
+    }
+
+    if (status === 204 || status === 205) {
+      return;
+    } // GitHub API returns 200 for HEAD requests
+
+
+    if (requestOptions.method === "HEAD") {
+      if (status < 400) {
+        return;
+      }
+
+      throw new requestError.RequestError(response.statusText, status, {
+        headers,
+        request: requestOptions
+      });
+    }
+
+    if (status === 304) {
+      throw new requestError.RequestError("Not modified", status, {
+        headers,
+        request: requestOptions
+      });
+    }
+
+    if (status >= 400) {
+      return response.text().then(message => {
+        const error = new requestError.RequestError(message, status, {
+          headers,
+          request: requestOptions
+        });
+
+        try {
+          let responseBody = JSON.parse(error.message);
+          Object.assign(error, responseBody);
+          let errors = responseBody.errors; // Assumption `errors` would always be in Array format
+
+          error.message = error.message + ": " + errors.map(JSON.stringify).join(", ");
+        } catch (e) {// ignore, see octokit/rest.js#684
+        }
+
+        throw error;
+      });
+    }
+
+    const contentType = response.headers.get("content-type");
+
+    if (/application\/json/.test(contentType)) {
+      return response.json();
+    }
+
+    if (!contentType || /^text\/|charset=utf-8$/.test(contentType)) {
+      return response.text();
+    }
+
+    return getBufferResponse(response);
+  }).then(data => {
+    return {
+      status,
+      url,
+      headers,
+      data
+    };
+  }).catch(error => {
+    if (error instanceof requestError.RequestError) {
+      throw error;
+    }
+
+    throw new requestError.RequestError(error.message, 500, {
+      headers,
+      request: requestOptions
+    });
+  });
+}
+
+function withDefaults(oldEndpoint, newDefaults) {
+  const endpoint = oldEndpoint.defaults(newDefaults);
+
+  const newApi = function (route, parameters) {
+    const endpointOptions = endpoint.merge(route, parameters);
+
+    if (!endpointOptions.request || !endpointOptions.request.hook) {
+      return fetchWrapper(endpoint.parse(endpointOptions));
+    }
+
+    const request = (route, parameters) => {
+      return fetchWrapper(endpoint.parse(endpoint.merge(route, parameters)));
+    };
+
+    Object.assign(request, {
+      endpoint,
+      defaults: withDefaults.bind(null, endpoint)
+    });
+    return endpointOptions.request.hook(request, endpointOptions);
+  };
+
+  return Object.assign(newApi, {
+    endpoint,
+    defaults: withDefaults.bind(null, endpoint)
+  });
+}
+
+const request = withDefaults(endpoint.endpoint, {
+  headers: {
+    "user-agent": `octokit-request.js/${VERSION} ${universalUserAgent.getUserAgent()}`
+  }
+});
+
+exports.request = request;
+//# sourceMappingURL=index.js.map
+
+
+/***/ }),
+
+/***/ 761:
+/***/ (function(module) {
+
+module.exports = require("zlib");
+
+/***/ }),
+
+/***/ 763:
+/***/ (function(module) {
+
+module.exports = removeHook
+
+function removeHook (state, name, method) {
+  if (!state.registry[name]) {
+    return
+  }
+
+  var index = state.registry[name]
+    .map(function (registered) { return registered.orig })
+    .indexOf(method)
+
+  if (index === -1) {
+    return
+  }
+
+  state.registry[name].splice(index, 1)
+}
+
+
+/***/ }),
+
+/***/ 768:
+/***/ (function(module) {
+
+"use strict";
+
+module.exports = function (x) {
+	var lf = typeof x === 'string' ? '\n' : '\n'.charCodeAt();
+	var cr = typeof x === 'string' ? '\r' : '\r'.charCodeAt();
+
+	if (x[x.length - 1] === lf) {
+		x = x.slice(0, x.length - 1);
+	}
+
+	if (x[x.length - 1] === cr) {
+		x = x.slice(0, x.length - 1);
+	}
+
+	return x;
+};
+
+
+/***/ }),
+
+/***/ 777:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = getFirstPage
+
+const getPage = __webpack_require__(265)
+
+function getFirstPage (octokit, link, headers) {
+  return getPage(octokit, link, 'first', headers)
+}
+
+
+/***/ }),
+
+/***/ 779:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+
+var utils = __webpack_require__(35);
+var buildURL = __webpack_require__(133);
+var InterceptorManager = __webpack_require__(283);
+var dispatchRequest = __webpack_require__(946);
+var mergeConfig = __webpack_require__(825);
+
+/**
+ * Create a new instance of Axios
+ *
+ * @param {Object} instanceConfig The default config for the instance
+ */
+function Axios(instanceConfig) {
+  this.defaults = instanceConfig;
+  this.interceptors = {
+    request: new InterceptorManager(),
+    response: new InterceptorManager()
+  };
+}
+
+/**
+ * Dispatch a request
+ *
+ * @param {Object} config The config specific for this request (merged with this.defaults)
+ */
+Axios.prototype.request = function request(config) {
+  /*eslint no-param-reassign:0*/
+  // Allow for axios('example/url'[, config]) a la fetch API
+  if (typeof config === 'string') {
+    config = arguments[1] || {};
+    config.url = arguments[0];
+  } else {
+    config = config || {};
+  }
+
+  config = mergeConfig(this.defaults, config);
+
+  // Set config.method
+  if (config.method) {
+    config.method = config.method.toLowerCase();
+  } else if (this.defaults.method) {
+    config.method = this.defaults.method.toLowerCase();
+  } else {
+    config.method = 'get';
+  }
+
+  // Hook up interceptors middleware
+  var chain = [dispatchRequest, undefined];
+  var promise = Promise.resolve(config);
+
+  this.interceptors.request.forEach(function unshiftRequestInterceptors(interceptor) {
+    chain.unshift(interceptor.fulfilled, interceptor.rejected);
+  });
+
+  this.interceptors.response.forEach(function pushResponseInterceptors(interceptor) {
+    chain.push(interceptor.fulfilled, interceptor.rejected);
+  });
+
+  while (chain.length) {
+    promise = promise.then(chain.shift(), chain.shift());
+  }
+
+  return promise;
+};
+
+Axios.prototype.getUri = function getUri(config) {
+  config = mergeConfig(this.defaults, config);
+  return buildURL(config.url, config.params, config.paramsSerializer).replace(/^\?/, '');
+};
+
+// Provide aliases for supported request methods
+utils.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData(method) {
+  /*eslint func-names:0*/
+  Axios.prototype[method] = function(url, config) {
+    return this.request(utils.merge(config || {}, {
+      method: method,
+      url: url
+    }));
+  };
+});
+
+utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
+  /*eslint func-names:0*/
+  Axios.prototype[method] = function(url, data, config) {
+    return this.request(utils.merge(config || {}, {
+      method: method,
+      url: url,
+      data: data
+    }));
+  };
+});
+
+module.exports = Axios;
+
+
+/***/ }),
+
+/***/ 786:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = paginatePlugin;
+
+const { paginateRest } = __webpack_require__(322);
+
+function paginatePlugin(octokit) {
+  Object.assign(octokit, paginateRest(octokit));
+}
+
+
+/***/ }),
+
+/***/ 790:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = authenticate;
+
+const { Deprecation } = __webpack_require__(692);
+const once = __webpack_require__(969);
+
+const deprecateAuthenticate = once((log, deprecation) => log.warn(deprecation));
+
+function authenticate(state, options) {
+  deprecateAuthenticate(
+    state.octokit.log,
+    new Deprecation(
+      '[@octokit/rest] octokit.authenticate() is deprecated. Use "auth" constructor option instead.'
+    )
+  );
+
+  if (!options) {
+    state.auth = false;
+    return;
+  }
+
+  switch (options.type) {
+    case "basic":
+      if (!options.username || !options.password) {
+        throw new Error(
+          "Basic authentication requires both a username and password to be set"
+        );
+      }
+      break;
+
+    case "oauth":
+      if (!options.token && !(options.key && options.secret)) {
+        throw new Error(
+          "OAuth2 authentication requires a token or key & secret to be set"
+        );
+      }
+      break;
+
+    case "token":
+    case "app":
+      if (!options.token) {
+        throw new Error("Token authentication requires a token to be set");
+      }
+      break;
+
+    default:
+      throw new Error(
+        "Invalid authentication type, must be 'basic', 'oauth', 'token' or 'app'"
+      );
+  }
+
+  state.auth = options;
+}
+
+
+/***/ }),
+
+/***/ 796:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+var osName = _interopDefault(__webpack_require__(2));
+
+function getUserAgent() {
+  try {
+    return `Node.js/${process.version.substr(1)} (${osName()}; ${process.arch})`;
+  } catch (error) {
+    if (/wmic os get Caption/.test(error.message)) {
+      return "Windows <version undetectable>";
+    }
+
+    return "<environment undetectable>";
+  }
+}
+
+exports.getUserAgent = getUserAgent;
+//# sourceMappingURL=index.js.map
+
+
+/***/ }),
+
+/***/ 813:
+/***/ (function(__unusedmodule, exports) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+async function auth(token) {
+  const tokenType = token.split(/\./).length === 3 ? "app" : /^v\d+\./.test(token) ? "installation" : "oauth";
+  return {
+    type: "token",
+    token: token,
+    tokenType
+  };
+}
+
+/**
+ * Prefix token for usage in the Authorization header
+ *
+ * @param token OAuth token or JSON Web Token
+ */
+function withAuthorizationPrefix(token) {
+  if (token.split(/\./).length === 3) {
+    return `bearer ${token}`;
+  }
+
+  return `token ${token}`;
+}
+
+async function hook(token, request, route, parameters) {
+  const endpoint = request.endpoint.merge(route, parameters);
+  endpoint.headers.authorization = withAuthorizationPrefix(token);
+  return request(endpoint);
+}
+
+const createTokenAuth = function createTokenAuth(token) {
+  if (!token) {
+    throw new Error("[@octokit/auth-token] No token passed to createTokenAuth");
+  }
+
+  if (typeof token !== "string") {
+    throw new Error("[@octokit/auth-token] Token passed to createTokenAuth is not a string");
+  }
+
+  token = token.replace(/^(token|bearer) +/i, "");
+  return Object.assign(auth.bind(null, token), {
+    hook: hook.bind(null, token)
+  });
+};
+
+exports.createTokenAuth = createTokenAuth;
+//# sourceMappingURL=index.js.map
+
+
+/***/ }),
+
+/***/ 816:
+/***/ (function(module) {
+
+"use strict";
+
+module.exports = /^#!.*/;
+
+
+/***/ }),
+
+/***/ 818:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = isexe
+isexe.sync = sync
+
+var fs = __webpack_require__(747)
+
+function checkPathExt (path, options) {
+  var pathext = options.pathExt !== undefined ?
+    options.pathExt : process.env.PATHEXT
+
+  if (!pathext) {
+    return true
+  }
+
+  pathext = pathext.split(';')
+  if (pathext.indexOf('') !== -1) {
+    return true
+  }
+  for (var i = 0; i < pathext.length; i++) {
+    var p = pathext[i].toLowerCase()
+    if (p && path.substr(-p.length).toLowerCase() === p) {
+      return true
+    }
+  }
+  return false
+}
+
+function checkStat (stat, path, options) {
+  if (!stat.isSymbolicLink() && !stat.isFile()) {
+    return false
+  }
+  return checkPathExt(path, options)
+}
+
+function isexe (path, options, cb) {
+  fs.stat(path, function (er, stat) {
+    cb(er, er ? false : checkStat(stat, path, options))
+  })
+}
+
+function sync (path, options) {
+  return checkStat(fs.statSync(path), path, options)
+}
+
+
+/***/ }),
+
+/***/ 825:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+
+var utils = __webpack_require__(35);
+
+/**
+ * Config-specific merge-function which creates a new config-object
+ * by merging two configuration objects together.
+ *
+ * @param {Object} config1
+ * @param {Object} config2
+ * @returns {Object} New object resulting from merging config2 to config1
+ */
+module.exports = function mergeConfig(config1, config2) {
+  // eslint-disable-next-line no-param-reassign
+  config2 = config2 || {};
+  var config = {};
+
+  var valueFromConfig2Keys = ['url', 'method', 'params', 'data'];
+  var mergeDeepPropertiesKeys = ['headers', 'auth', 'proxy'];
+  var defaultToConfig2Keys = [
+    'baseURL', 'url', 'transformRequest', 'transformResponse', 'paramsSerializer',
+    'timeout', 'withCredentials', 'adapter', 'responseType', 'xsrfCookieName',
+    'xsrfHeaderName', 'onUploadProgress', 'onDownloadProgress',
+    'maxContentLength', 'validateStatus', 'maxRedirects', 'httpAgent',
+    'httpsAgent', 'cancelToken', 'socketPath'
+  ];
+
+  utils.forEach(valueFromConfig2Keys, function valueFromConfig2(prop) {
+    if (typeof config2[prop] !== 'undefined') {
+      config[prop] = config2[prop];
+    }
+  });
+
+  utils.forEach(mergeDeepPropertiesKeys, function mergeDeepProperties(prop) {
+    if (utils.isObject(config2[prop])) {
+      config[prop] = utils.deepMerge(config1[prop], config2[prop]);
+    } else if (typeof config2[prop] !== 'undefined') {
+      config[prop] = config2[prop];
+    } else if (utils.isObject(config1[prop])) {
+      config[prop] = utils.deepMerge(config1[prop]);
+    } else if (typeof config1[prop] !== 'undefined') {
+      config[prop] = config1[prop];
+    }
+  });
+
+  utils.forEach(defaultToConfig2Keys, function defaultToConfig2(prop) {
+    if (typeof config2[prop] !== 'undefined') {
+      config[prop] = config2[prop];
+    } else if (typeof config1[prop] !== 'undefined') {
+      config[prop] = config1[prop];
+    }
+  });
+
+  var axiosKeys = valueFromConfig2Keys
+    .concat(mergeDeepPropertiesKeys)
+    .concat(defaultToConfig2Keys);
+
+  var otherKeys = Object
+    .keys(config2)
+    .filter(function filterAxiosKeys(key) {
+      return axiosKeys.indexOf(key) === -1;
+    });
+
+  utils.forEach(otherKeys, function otherKeysDefaultToConfig2(prop) {
+    if (typeof config2[prop] !== 'undefined') {
+      config[prop] = config2[prop];
+    } else if (typeof config1[prop] !== 'undefined') {
+      config[prop] = config1[prop];
+    }
+  });
+
+  return config;
+};
+
+
+/***/ }),
+
+/***/ 826:
+/***/ (function(module) {
+
+"use strict";
+
+
+/**
+ * A `Cancel` is an object that is thrown when an operation is canceled.
+ *
+ * @class
+ * @param {string=} message The message.
+ */
+function Cancel(message) {
+  this.message = message;
+}
+
+Cancel.prototype.toString = function toString() {
+  return 'Cancel' + (this.message ? ': ' + this.message : '');
+};
+
+Cancel.prototype.__CANCEL__ = true;
+
+module.exports = Cancel;
+
+
+/***/ }),
+
+/***/ 835:
+/***/ (function(module) {
+
+module.exports = require("url");
+
+/***/ }),
+
+/***/ 842:
+/***/ (function(module) {
+
+"use strict";
+
+
+var has = Object.prototype.hasOwnProperty
+  , prefix = '~';
+
+/**
+ * Constructor to create a storage for our `EE` objects.
+ * An `Events` instance is a plain object whose properties are event names.
+ *
+ * @constructor
+ * @private
+ */
+function Events() {}
+
+//
+// We try to not inherit from `Object.prototype`. In some engines creating an
+// instance in this way is faster than calling `Object.create(null)` directly.
+// If `Object.create(null)` is not supported we prefix the event names with a
+// character to make sure that the built-in object properties are not
+// overridden or used as an attack vector.
+//
+if (Object.create) {
+  Events.prototype = Object.create(null);
+
+  //
+  // This hack is needed because the `__proto__` property is still inherited in
+  // some old browsers like Android 4, iPhone 5.1, Opera 11 and Safari 5.
+  //
+  if (!new Events().__proto__) prefix = false;
+}
+
+/**
+ * Representation of a single event listener.
+ *
+ * @param {Function} fn The listener function.
+ * @param {*} context The context to invoke the listener with.
+ * @param {Boolean} [once=false] Specify if the listener is a one-time listener.
+ * @constructor
+ * @private
+ */
+function EE(fn, context, once) {
+  this.fn = fn;
+  this.context = context;
+  this.once = once || false;
+}
+
+/**
+ * Add a listener for a given event.
+ *
+ * @param {EventEmitter} emitter Reference to the `EventEmitter` instance.
+ * @param {(String|Symbol)} event The event name.
+ * @param {Function} fn The listener function.
+ * @param {*} context The context to invoke the listener with.
+ * @param {Boolean} once Specify if the listener is a one-time listener.
+ * @returns {EventEmitter}
+ * @private
+ */
+function addListener(emitter, event, fn, context, once) {
+  if (typeof fn !== 'function') {
+    throw new TypeError('The listener must be a function');
+  }
+
+  var listener = new EE(fn, context || emitter, once)
+    , evt = prefix ? prefix + event : event;
+
+  if (!emitter._events[evt]) emitter._events[evt] = listener, emitter._eventsCount++;
+  else if (!emitter._events[evt].fn) emitter._events[evt].push(listener);
+  else emitter._events[evt] = [emitter._events[evt], listener];
+
+  return emitter;
+}
+
+/**
+ * Clear event by name.
+ *
+ * @param {EventEmitter} emitter Reference to the `EventEmitter` instance.
+ * @param {(String|Symbol)} evt The Event name.
+ * @private
+ */
+function clearEvent(emitter, evt) {
+  if (--emitter._eventsCount === 0) emitter._events = new Events();
+  else delete emitter._events[evt];
+}
+
+/**
+ * Minimal `EventEmitter` interface that is molded against the Node.js
+ * `EventEmitter` interface.
+ *
+ * @constructor
+ * @public
+ */
+function EventEmitter() {
+  this._events = new Events();
+  this._eventsCount = 0;
+}
+
+/**
+ * Return an array listing the events for which the emitter has registered
+ * listeners.
+ *
+ * @returns {Array}
+ * @public
+ */
+EventEmitter.prototype.eventNames = function eventNames() {
+  var names = []
+    , events
+    , name;
+
+  if (this._eventsCount === 0) return names;
+
+  for (name in (events = this._events)) {
+    if (has.call(events, name)) names.push(prefix ? name.slice(1) : name);
+  }
+
+  if (Object.getOwnPropertySymbols) {
+    return names.concat(Object.getOwnPropertySymbols(events));
+  }
+
+  return names;
+};
+
+/**
+ * Return the listeners registered for a given event.
+ *
+ * @param {(String|Symbol)} event The event name.
+ * @returns {Array} The registered listeners.
+ * @public
+ */
+EventEmitter.prototype.listeners = function listeners(event) {
+  var evt = prefix ? prefix + event : event
+    , handlers = this._events[evt];
+
+  if (!handlers) return [];
+  if (handlers.fn) return [handlers.fn];
+
+  for (var i = 0, l = handlers.length, ee = new Array(l); i < l; i++) {
+    ee[i] = handlers[i].fn;
+  }
+
+  return ee;
+};
+
+/**
+ * Return the number of listeners listening to a given event.
+ *
+ * @param {(String|Symbol)} event The event name.
+ * @returns {Number} The number of listeners.
+ * @public
+ */
+EventEmitter.prototype.listenerCount = function listenerCount(event) {
+  var evt = prefix ? prefix + event : event
+    , listeners = this._events[evt];
+
+  if (!listeners) return 0;
+  if (listeners.fn) return 1;
+  return listeners.length;
+};
+
+/**
+ * Calls each of the listeners registered for a given event.
+ *
+ * @param {(String|Symbol)} event The event name.
+ * @returns {Boolean} `true` if the event had listeners, else `false`.
+ * @public
+ */
+EventEmitter.prototype.emit = function emit(event, a1, a2, a3, a4, a5) {
+  var evt = prefix ? prefix + event : event;
+
+  if (!this._events[evt]) return false;
+
+  var listeners = this._events[evt]
+    , len = arguments.length
+    , args
+    , i;
+
+  if (listeners.fn) {
+    if (listeners.once) this.removeListener(event, listeners.fn, undefined, true);
+
+    switch (len) {
+      case 1: return listeners.fn.call(listeners.context), true;
+      case 2: return listeners.fn.call(listeners.context, a1), true;
+      case 3: return listeners.fn.call(listeners.context, a1, a2), true;
+      case 4: return listeners.fn.call(listeners.context, a1, a2, a3), true;
+      case 5: return listeners.fn.call(listeners.context, a1, a2, a3, a4), true;
+      case 6: return listeners.fn.call(listeners.context, a1, a2, a3, a4, a5), true;
+    }
+
+    for (i = 1, args = new Array(len -1); i < len; i++) {
+      args[i - 1] = arguments[i];
+    }
+
+    listeners.fn.apply(listeners.context, args);
+  } else {
+    var length = listeners.length
+      , j;
+
+    for (i = 0; i < length; i++) {
+      if (listeners[i].once) this.removeListener(event, listeners[i].fn, undefined, true);
+
+      switch (len) {
+        case 1: listeners[i].fn.call(listeners[i].context); break;
+        case 2: listeners[i].fn.call(listeners[i].context, a1); break;
+        case 3: listeners[i].fn.call(listeners[i].context, a1, a2); break;
+        case 4: listeners[i].fn.call(listeners[i].context, a1, a2, a3); break;
+        default:
+          if (!args) for (j = 1, args = new Array(len -1); j < len; j++) {
+            args[j - 1] = arguments[j];
+          }
+
+          listeners[i].fn.apply(listeners[i].context, args);
+      }
+    }
+  }
+
+  return true;
+};
+
+/**
+ * Add a listener for a given event.
+ *
+ * @param {(String|Symbol)} event The event name.
+ * @param {Function} fn The listener function.
+ * @param {*} [context=this] The context to invoke the listener with.
+ * @returns {EventEmitter} `this`.
+ * @public
+ */
+EventEmitter.prototype.on = function on(event, fn, context) {
+  return addListener(this, event, fn, context, false);
+};
+
+/**
+ * Add a one-time listener for a given event.
+ *
+ * @param {(String|Symbol)} event The event name.
+ * @param {Function} fn The listener function.
+ * @param {*} [context=this] The context to invoke the listener with.
+ * @returns {EventEmitter} `this`.
+ * @public
+ */
+EventEmitter.prototype.once = function once(event, fn, context) {
+  return addListener(this, event, fn, context, true);
+};
+
+/**
+ * Remove the listeners of a given event.
+ *
+ * @param {(String|Symbol)} event The event name.
+ * @param {Function} fn Only remove the listeners that match this function.
+ * @param {*} context Only remove the listeners that have this context.
+ * @param {Boolean} once Only remove one-time listeners.
+ * @returns {EventEmitter} `this`.
+ * @public
+ */
+EventEmitter.prototype.removeListener = function removeListener(event, fn, context, once) {
+  var evt = prefix ? prefix + event : event;
+
+  if (!this._events[evt]) return this;
+  if (!fn) {
+    clearEvent(this, evt);
+    return this;
+  }
+
+  var listeners = this._events[evt];
+
+  if (listeners.fn) {
+    if (
+      listeners.fn === fn &&
+      (!once || listeners.once) &&
+      (!context || listeners.context === context)
+    ) {
+      clearEvent(this, evt);
+    }
+  } else {
+    for (var i = 0, events = [], length = listeners.length; i < length; i++) {
+      if (
+        listeners[i].fn !== fn ||
+        (once && !listeners[i].once) ||
+        (context && listeners[i].context !== context)
+      ) {
+        events.push(listeners[i]);
+      }
+    }
+
+    //
+    // Reset the array, or remove it completely if we have no more listeners.
+    //
+    if (events.length) this._events[evt] = events.length === 1 ? events[0] : events;
+    else clearEvent(this, evt);
+  }
+
+  return this;
+};
+
+/**
+ * Remove all listeners, or those of the specified event.
+ *
+ * @param {(String|Symbol)} [event] The event name.
+ * @returns {EventEmitter} `this`.
+ * @public
+ */
+EventEmitter.prototype.removeAllListeners = function removeAllListeners(event) {
+  var evt;
+
+  if (event) {
+    evt = prefix ? prefix + event : event;
+    if (this._events[evt]) clearEvent(this, evt);
+  } else {
+    this._events = new Events();
+    this._eventsCount = 0;
+  }
+
+  return this;
+};
+
+//
+// Alias methods names because people roll like that.
+//
+EventEmitter.prototype.off = EventEmitter.prototype.removeListener;
+EventEmitter.prototype.addListener = EventEmitter.prototype.on;
+
+//
+// Expose the prefix.
+//
+EventEmitter.prefixed = prefix;
+
+//
+// Allow `EventEmitter` to be imported as module namespace.
+//
+EventEmitter.EventEmitter = EventEmitter;
+
+//
+// Expose the module.
+//
+if (true) {
+  module.exports = EventEmitter;
+}
+
+
+/***/ }),
+
 /***/ 847:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
@@ -28627,12 +28561,20 @@ module.exports = get;
 
 /***/ }),
 
-/***/ 855:
+/***/ 856:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = __webpack_require__(141);
+
+
+/***/ }),
+
+/***/ 861:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
 module.exports = registerPlugin;
 
-const factory = __webpack_require__(47);
+const factory = __webpack_require__(513);
 
 function registerPlugin(plugins, pluginFunction) {
   return factory(
@@ -28643,70 +28585,32 @@ function registerPlugin(plugins, pluginFunction) {
 
 /***/ }),
 
-/***/ 856:
-/***/ (function(module, __unusedexports, __webpack_require__) {
+/***/ 862:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(141);
+"use strict";
 
 
-/***/ }),
+Object.defineProperty(exports, '__esModule', { value: true });
 
-/***/ 863:
-/***/ (function(module, __unusedexports, __webpack_require__) {
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
-module.exports = authenticationBeforeRequest;
+var osName = _interopDefault(__webpack_require__(2));
 
-const btoa = __webpack_require__(675);
-
-const withAuthorizationPrefix = __webpack_require__(143);
-
-function authenticationBeforeRequest(state, options) {
-  if (typeof state.auth === "string") {
-    options.headers.authorization = withAuthorizationPrefix(state.auth);
-    return;
-  }
-
-  if (state.auth.username) {
-    const hash = btoa(`${state.auth.username}:${state.auth.password}`);
-    options.headers.authorization = `Basic ${hash}`;
-    if (state.otp) {
-      options.headers["x-github-otp"] = state.otp;
-    }
-    return;
-  }
-
-  if (state.auth.clientId) {
-    // There is a special case for OAuth applications, when `clientId` and `clientSecret` is passed as
-    // Basic Authorization instead of query parameters. The only routes where that applies share the same
-    // URL though: `/applications/:client_id/tokens/:access_token`.
-    //
-    //  1. [Check an authorization](https://developer.github.com/v3/oauth_authorizations/#check-an-authorization)
-    //  2. [Reset an authorization](https://developer.github.com/v3/oauth_authorizations/#reset-an-authorization)
-    //  3. [Revoke an authorization for an application](https://developer.github.com/v3/oauth_authorizations/#revoke-an-authorization-for-an-application)
-    //
-    // We identify by checking the URL. It must merge both "/applications/:client_id/tokens/:access_token"
-    // as well as "/applications/123/tokens/token456"
-    if (/\/applications\/:?[\w_]+\/tokens\/:?[\w_]+($|\?)/.test(options.url)) {
-      const hash = btoa(`${state.auth.clientId}:${state.auth.clientSecret}`);
-      options.headers.authorization = `Basic ${hash}`;
-      return;
+function getUserAgent() {
+  try {
+    return `Node.js/${process.version.substr(1)} (${osName()}; ${process.arch})`;
+  } catch (error) {
+    if (/wmic os get Caption/.test(error.message)) {
+      return "Windows <version undetectable>";
     }
 
-    options.url += options.url.indexOf("?") === -1 ? "?" : "&";
-    options.url += `client_id=${state.auth.clientId}&client_secret=${state.auth.clientSecret}`;
-    return;
+    throw error;
   }
-
-  return Promise.resolve()
-
-    .then(() => {
-      return state.auth();
-    })
-
-    .then(authorization => {
-      options.headers.authorization = withAuthorizationPrefix(authorization);
-    });
 }
+
+exports.getUserAgent = getUserAgent;
+//# sourceMappingURL=index.js.map
 
 
 /***/ }),
@@ -28903,6 +28807,22 @@ module.exports = {
     verifyENOENT,
     verifyENOENTSync,
     notFoundError,
+};
+
+
+/***/ }),
+
+/***/ 882:
+/***/ (function(module) {
+
+"use strict";
+
+
+module.exports = (flag, argv = process.argv) => {
+	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
+	const position = argv.indexOf(prefix + flag);
+	const terminatorPosition = argv.indexOf('--');
+	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
 };
 
 
@@ -29927,6 +29847,89 @@ module.exports = function combineURLs(baseURL, relativeURL) {
 
 /***/ }),
 
+/***/ 890:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+module.exports = authenticationPlugin;
+
+const { createTokenAuth } = __webpack_require__(813);
+const { Deprecation } = __webpack_require__(692);
+const once = __webpack_require__(969);
+
+const beforeRequest = __webpack_require__(414);
+const requestError = __webpack_require__(446);
+const validate = __webpack_require__(538);
+const withAuthorizationPrefix = __webpack_require__(85);
+
+const deprecateAuthBasic = once((log, deprecation) => log.warn(deprecation));
+const deprecateAuthObject = once((log, deprecation) => log.warn(deprecation));
+
+function authenticationPlugin(octokit, options) {
+  // If `options.authStrategy` is set then use it and pass in `options.auth`
+  if (options.authStrategy) {
+    const auth = options.authStrategy(options.auth);
+    octokit.hook.wrap("request", auth.hook);
+    octokit.auth = auth;
+    return;
+  }
+
+  // If neither `options.authStrategy` nor `options.auth` are set, the `octokit` instance
+  // is unauthenticated. The `octokit.auth()` method is a no-op and no request hook is registred.
+  if (!options.auth) {
+    octokit.auth = () =>
+      Promise.resolve({
+        type: "unauthenticated"
+      });
+    return;
+  }
+
+  const isBasicAuthString =
+    typeof options.auth === "string" &&
+    /^basic/.test(withAuthorizationPrefix(options.auth));
+
+  // If only `options.auth` is set to a string, use the default token authentication strategy.
+  if (typeof options.auth === "string" && !isBasicAuthString) {
+    const auth = createTokenAuth(options.auth);
+    octokit.hook.wrap("request", auth.hook);
+    octokit.auth = auth;
+    return;
+  }
+
+  // Otherwise log a deprecation message
+  const [deprecationMethod, deprecationMessapge] = isBasicAuthString
+    ? [
+        deprecateAuthBasic,
+        'Setting the "new Octokit({ auth })" option to a Basic Auth string is deprecated. Use https://github.com/octokit/auth-basic.js instead. See (https://octokit.github.io/rest.js/#authentication)'
+      ]
+    : [
+        deprecateAuthObject,
+        'Setting the "new Octokit({ auth })" option to an object without also setting the "authStrategy" option is deprecated and will be removed in v17. See (https://octokit.github.io/rest.js/#authentication)'
+      ];
+  deprecationMethod(
+    octokit.log,
+    new Deprecation("[@octokit/rest] " + deprecationMessapge)
+  );
+
+  octokit.auth = () =>
+    Promise.resolve({
+      type: "deprecated",
+      message: deprecationMessapge
+    });
+
+  validate(options.auth);
+
+  const state = {
+    octokit,
+    auth: options.auth
+  };
+
+  octokit.hook.before("request", beforeRequest.bind(null, state));
+  octokit.hook.error("request", requestError.bind(null, state));
+}
+
+
+/***/ }),
+
 /***/ 892:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -30018,7 +30021,7 @@ function descending(a, b)
 Object.defineProperty(exports, '__esModule', { value: true });
 
 var request = __webpack_require__(753);
-var universalUserAgent = __webpack_require__(796);
+var universalUserAgent = __webpack_require__(862);
 
 const VERSION = "4.3.1";
 
@@ -30140,6 +30143,13 @@ exports.requestLog = requestLog;
 
 /***/ }),
 
+/***/ 919:
+/***/ (function(module) {
+
+module.exports = {"name":"@octokit/rest","version":"16.43.1","publishConfig":{"access":"public"},"description":"GitHub REST API client for Node.js","keywords":["octokit","github","rest","api-client"],"author":"Gregor Martynus (https://github.com/gr2m)","contributors":[{"name":"Mike de Boer","email":"info@mikedeboer.nl"},{"name":"Fabian Jakobs","email":"fabian@c9.io"},{"name":"Joe Gallo","email":"joe@brassafrax.com"},{"name":"Gregor Martynus","url":"https://github.com/gr2m"}],"repository":"https://github.com/octokit/rest.js","dependencies":{"@octokit/auth-token":"^2.4.0","@octokit/plugin-paginate-rest":"^1.1.1","@octokit/plugin-request-log":"^1.0.0","@octokit/plugin-rest-endpoint-methods":"2.4.0","@octokit/request":"^5.2.0","@octokit/request-error":"^1.0.2","atob-lite":"^2.0.0","before-after-hook":"^2.0.0","btoa-lite":"^1.0.0","deprecation":"^2.0.0","lodash.get":"^4.4.2","lodash.set":"^4.3.2","lodash.uniq":"^4.5.0","octokit-pagination-methods":"^1.1.0","once":"^1.4.0","universal-user-agent":"^4.0.0"},"devDependencies":{"@gimenete/type-writer":"^0.1.3","@octokit/auth":"^1.1.1","@octokit/fixtures-server":"^5.0.6","@octokit/graphql":"^4.2.0","@types/node":"^13.1.0","bundlesize":"^0.18.0","chai":"^4.1.2","compression-webpack-plugin":"^3.1.0","cypress":"^3.0.0","glob":"^7.1.2","http-proxy-agent":"^4.0.0","lodash.camelcase":"^4.3.0","lodash.merge":"^4.6.1","lodash.upperfirst":"^4.3.1","lolex":"^5.1.2","mkdirp":"^1.0.0","mocha":"^7.0.1","mustache":"^4.0.0","nock":"^11.3.3","npm-run-all":"^4.1.2","nyc":"^15.0.0","prettier":"^1.14.2","proxy":"^1.0.0","semantic-release":"^17.0.0","sinon":"^8.0.0","sinon-chai":"^3.0.0","sort-keys":"^4.0.0","string-to-arraybuffer":"^1.0.0","string-to-jsdoc-comment":"^1.0.0","typescript":"^3.3.1","webpack":"^4.0.0","webpack-bundle-analyzer":"^3.0.0","webpack-cli":"^3.0.0"},"types":"index.d.ts","scripts":{"coverage":"nyc report --reporter=html && open coverage/index.html","lint":"prettier --check '{lib,plugins,scripts,test}/**/*.{js,json,ts}' 'docs/*.{js,json}' 'docs/src/**/*' index.js README.md package.json","lint:fix":"prettier --write '{lib,plugins,scripts,test}/**/*.{js,json,ts}' 'docs/*.{js,json}' 'docs/src/**/*' index.js README.md package.json","pretest":"npm run -s lint","test":"nyc mocha test/mocha-node-setup.js \"test/*/**/*-test.js\"","test:browser":"cypress run --browser chrome","build":"npm-run-all build:*","build:ts":"npm run -s update-endpoints:typescript","prebuild:browser":"mkdirp dist/","build:browser":"npm-run-all build:browser:*","build:browser:development":"webpack --mode development --entry . --output-library=Octokit --output=./dist/octokit-rest.js --profile --json > dist/bundle-stats.json","build:browser:production":"webpack --mode production --entry . --plugin=compression-webpack-plugin --output-library=Octokit --output-path=./dist --output-filename=octokit-rest.min.js --devtool source-map","generate-bundle-report":"webpack-bundle-analyzer dist/bundle-stats.json --mode=static --no-open --report dist/bundle-report.html","update-endpoints":"npm-run-all update-endpoints:*","update-endpoints:fetch-json":"node scripts/update-endpoints/fetch-json","update-endpoints:typescript":"node scripts/update-endpoints/typescript","prevalidate:ts":"npm run -s build:ts","validate:ts":"tsc --target es6 --noImplicitAny index.d.ts","postvalidate:ts":"tsc --noEmit --target es6 test/typescript-validate.ts","start-fixtures-server":"octokit-fixtures-server"},"license":"MIT","files":["index.js","index.d.ts","lib","plugins"],"nyc":{"ignore":["test"]},"release":{"publish":["@semantic-release/npm",{"path":"@semantic-release/github","assets":["dist/*","!dist/*.map.gz"]}]},"bundlesize":[{"path":"./dist/octokit-rest.min.js.gz","maxSize":"33 kB"}]};
+
+/***/ }),
+
 /***/ 928:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -30147,7 +30157,7 @@ var CombinedStream = __webpack_require__(547);
 var util = __webpack_require__(669);
 var path = __webpack_require__(622);
 var http = __webpack_require__(605);
-var https = __webpack_require__(34);
+var https = __webpack_require__(211);
 var parseUrl = __webpack_require__(835).parse;
 var fs = __webpack_require__(747);
 var mime = __webpack_require__(432);
@@ -30691,7 +30701,7 @@ function terminator(callback)
 var utils = __webpack_require__(35);
 var transformData = __webpack_require__(589);
 var isCancel = __webpack_require__(732);
-var defaults = __webpack_require__(774);
+var defaults = __webpack_require__(529);
 
 /**
  * Throws a `Cancel` if cancellation has been requested.
@@ -30854,29 +30864,39 @@ exports.checkBypass = checkBypass;
 
 /***/ }),
 
-/***/ 954:
-/***/ (function(module) {
+/***/ 953:
+/***/ (function(module, __unusedexports, __webpack_require__) {
 
-module.exports = validateAuth;
+module.exports = authenticationPlugin;
 
-function validateAuth(auth) {
-  if (typeof auth === "string") {
+const { Deprecation } = __webpack_require__(692);
+const once = __webpack_require__(969);
+
+const deprecateAuthenticate = once((log, deprecation) => log.warn(deprecation));
+
+const authenticate = __webpack_require__(790);
+const beforeRequest = __webpack_require__(140);
+const requestError = __webpack_require__(240);
+
+function authenticationPlugin(octokit, options) {
+  if (options.auth) {
+    octokit.authenticate = () => {
+      deprecateAuthenticate(
+        octokit.log,
+        new Deprecation(
+          '[@octokit/rest] octokit.authenticate() is deprecated and has no effect when "auth" option is set on Octokit constructor'
+        )
+      );
+    };
     return;
   }
-
-  if (typeof auth === "function") {
-    return;
-  }
-
-  if (auth.username && auth.password) {
-    return;
-  }
-
-  if (auth.clientId && auth.clientSecret) {
-    return;
-  }
-
-  throw new Error(`Invalid "auth" option: ${JSON.stringify(auth)}`);
+  const state = {
+    octokit,
+    auth: false
+  };
+  octokit.authenticate = authenticate.bind(null, state);
+  octokit.hook.before("request", beforeRequest.bind(null, state));
+  octokit.hook.error("request", requestError.bind(null, state));
 }
 
 
@@ -31323,7 +31343,7 @@ if (Symbol['asyncIterator'] === undefined) {
 const querystring_1 = __webpack_require__(191);
 const path_1 = __webpack_require__(622);
 const is_stream_1 = __importDefault(__webpack_require__(323));
-const eventemitter3_1 = __webpack_require__(726);
+const eventemitter3_1 = __webpack_require__(842);
 const p_queue_1 = __importDefault(__webpack_require__(169)); // tslint:disable-line:import-name
 const p_retry_1 = __importStar(__webpack_require__(604));
 const axios_1 = __importDefault(__webpack_require__(53));
