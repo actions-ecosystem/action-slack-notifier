@@ -6,7 +6,7 @@ inputs:
     description: A Slack token.
     required: true
   channel:
-    description: A channel that will receives the message. e.g.) `develop`, `#develop`
+    description: A channel that will receives the message. Optionally, a coma separated list of channels e.g.) `develop`, `#develop`, `develop, release, test`
     required: true
   message:
     description: A message for the channel. Supports Markdown format.

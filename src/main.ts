@@ -26,9 +26,7 @@ const colorCodes = new Map<string, string>([
 async function run(): Promise<void> {
   try {
     const client = new WebClient(core.getInput('slack_token'));
-
-    const channel = core.getInput('channel').replace(/^#/, ''); // remove '#' prefix
-
+    const channel = core.getInput('channel')
     const message = core.getInput('message');
     const username = core.getInput('username');
     const color =
@@ -56,18 +54,20 @@ async function run(): Promise<void> {
       runId
     );
 
-    const args = await createPostMessageArguments(
-      channel,
-      message,
-      username,
-      elements,
-      verbose,
-      color,
-      unfurl,
-      customPayload
-    );
-
-    await client.chat.postMessage(args);
+    for (const ch of channel.split(",")) {
+      const channel = ch.replace(/^#/, '').trim()
+      const args = await createPostMessageArguments(
+        channel,
+        message,
+        username,
+        elements,
+        verbose,
+        color,
+        unfurl,
+        customPayload
+      );
+      await client.chat.postMessage(args);
+    }
   } catch (e) {
     core.error(e);
     core.setFailed(e.message);
