@@ -6,10 +6,10 @@
 
 ![screenshot](./docs/assets/screenshot-pull-request.png)
 
-This is a GitHub Action to send notifications to Slack on general purpose.
+This is a GitHub Action to send notifications to Slack for general purposes.
 
 This action is designed to focus on sending notifications, so you can flexibly customize your workflow with this action.
-For example, sending a message to you when a job status changes, you get a comment in an issue, a label is added to your pull request, and so on.
+For example, sending a message to you when a job status changes, you get a comment on an issue, a label is added to your pull request, and so on.
 
 It would be more useful to use this with other GitHub Actions' outputs.
 
@@ -54,9 +54,9 @@ Open a Slack channel and add the app.
 |       NAME       |                                                                              DESCRIPTION                                                                               |   TYPE   | REQUIRED |     DEFAULT      |
 |------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|----------|------------------|
 | `slack_token`    | A Slack token.                                                                                                                                                         | `string` | `true`   | `N/A`            |
-| `channel`        | A channel that will receives the message. e.g.) `develop`, `#develop`                                                                                                  | `string` | `true`   | `N/A`            |
+| `channel`        | A channel that will receive the message. e.g.) `develop`, `#develop`                                                                                                  | `string` | `true`   | `N/A`            |
 | `message`        | A message for the channel. Supports Markdown format.                                                                                                                   | `string` | `true`   | `N/A`            |
-| `username`       | An username who sends a message.                                                                                                                                       | `string` | `false`  | `GitHub Actions` |
+| `username`       | An username that sends a message.                                                                                                                                       | `string` | `false`  | `GitHub Actions` |
 | `color`          | A color of a message. The color names {black, red, green, yellow, blue, magenta, cyan, white} and color code (e.g., `#4CAF50`) are available. The default is no-color. | `string` | `false`  | `N/A`            |
 | `verbose`        | Whether message contains GitHub context: repository, ref, workflow, event, action, number                                                                              | `bool`   | `false`  | `false`          |
 | `unfurl`         | Whether to unfurl links and media in a message.                                                                                                                        | `bool`   | `false`  | `true`           |
